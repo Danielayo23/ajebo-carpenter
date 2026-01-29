@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
 
-    "migrate:dev": "cross-env DATABASE_URL=\"mysql://ajebo_migrate:%23Danielayo23@127.0.0.1:3306/ajebo_carpenter\" prisma migrate dev",
-    "migrate:deploy": "cross-env DATABASE_URL=\"mysql://ajebo_migrate:%23Danielayo23@127.0.0.1:3306/ajebo_carpenter\" prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
     "generate": "prisma generate"
   },
   "dependencies": {
