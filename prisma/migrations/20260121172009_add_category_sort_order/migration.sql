@@ -5,7 +5,7 @@
 
 */
 -- AlterTable
-ALTER TABLE `category` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE `Category` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0;
 
 -- CreateIndex
 CREATE UNIQUE INDEX `Category_name_key` ON `Category`(`name`);

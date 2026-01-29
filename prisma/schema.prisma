@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,116 +6,117 @@ datasource db {
   provider = "mysql"
 }
 
-model User {
-  id          Int      @id @default(autoincrement())
-  clerkUserId String   @unique
-  email       String
-  role        Role     @default(CUSTOMER)
-  createdAt   DateTime @default(now())
-
-  orders Order[]
-  cart   Cart?
+model cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique(map: "Cart_userId_key")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime
+  user      user       @relation(fields: [userId], references: [id], map: "Cart_userId_fkey")
+  cartitem  cartitem[]
 }
 
-model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
-  sortOrder Int       @default(0)
-  products  Product[]
-}
-
-model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  slug        String   @unique
-  description String   @db.Text
-  price       Int // store in kobo
-  imageUrl    String
-  images      Json? // ✅ array of extra image urls (e.g. ["...", "..."])
-  stock       Int
-  active      Boolean  @default(true)
-  categoryId  Int
-  createdAt   DateTime @default(now())
-
-  category   Category    @relation(fields: [categoryId], references: [id])
-  orderItems OrderItem[]
-  cartItems  CartItem[]
-}
-
-model Cart {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user  User       @relation(fields: [userId], references: [id])
-  items CartItem[]
-}
-
-model CartItem {
+model cartitem {
   id        Int      @id @default(autoincrement())
   cartId    Int
   productId Int
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
+  cart      cart     @relation(fields: [cartId], references: [id], onDelete: Cascade, map: "CartItem_cartId_fkey")
+  product   product  @relation(fields: [productId], references: [id], map: "CartItem_productId_fkey")
 
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-
-  @@unique([cartId, productId])
+  @@unique([cartId, productId], map: "CartItem_cartId_productId_key")
+  @@index([productId], map: "CartItem_productId_fkey")
 }
 
-model Order {
-  id             Int            @id @default(autoincrement())
-  reference      String         @unique
-  userId         Int
-  totalAmount    Int
-  status         OrderStatus    @default(PENDING)
-  deliveryStatus DeliveryStatus @default(PROCESSING)
-  deliveredAt    DateTime?
-  createdAt      DateTime       @default(now())
-
-  user    User        @relation(fields: [userId], references: [id])
-  items   OrderItem[]
-  payment Payment?
-}
-
-model OrderItem {
-  id        Int @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  price     Int
-
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-}
-
-model Payment {
+model category {
   id        Int       @id @default(autoincrement())
-  orderId   Int       @unique
-  provider  String // paystack
-  reference String
-  status    String
-  paidAt    DateTime?
-
-  order Order @relation(fields: [orderId], references: [id])
+  name      String    @unique(map: "Category_name_key")
+  slug      String    @unique(map: "Category_slug_key")
+  sortOrder Int       @default(0)
+  product   product[]
 }
 
-model Hero {
+model hero {
   id                 Int     @id @default(autoincrement())
   backgroundImageUrl String
   active             Boolean @default(true)
 }
 
-enum Role {
+model order {
+  id             Int                  @id @default(autoincrement())
+  reference      String               @unique(map: "Order_reference_key")
+  userId         Int
+  totalAmount    Int
+  status         order_status         @default(PENDING)
+  createdAt      DateTime             @default(now())
+  deliveredAt    DateTime?
+  deliveryStatus order_deliveryStatus @default(PROCESSING)
+  user           user                 @relation(fields: [userId], references: [id], map: "Order_userId_fkey")
+  orderitem      orderitem[]
+  payment        payment?
+
+  @@index([userId], map: "Order_userId_fkey")
+}
+
+model orderitem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Int
+  order     order   @relation(fields: [orderId], references: [id], map: "OrderItem_orderId_fkey")
+  product   product @relation(fields: [productId], references: [id], map: "OrderItem_productId_fkey")
+
+  @@index([orderId], map: "OrderItem_orderId_fkey")
+  @@index([productId], map: "OrderItem_productId_fkey")
+}
+
+model payment {
+  id        Int       @id @default(autoincrement())
+  orderId   Int       @unique(map: "Payment_orderId_key")
+  provider  String
+  reference String
+  status    String
+  paidAt    DateTime?
+  order     order     @relation(fields: [orderId], references: [id], map: "Payment_orderId_fkey")
+}
+
+model product {
+  id          Int         @id @default(autoincrement())
+  name        String
+  slug        String      @unique(map: "Product_slug_key")
+  description String      @db.Text
+  price       Int
+  imageUrl    String
+  stock       Int
+  active      Boolean     @default(true)
+  categoryId  Int
+  createdAt   DateTime    @default(now())
+  images      Json?
+  cartitem    cartitem[]
+  orderitem   orderitem[]
+  category    category    @relation(fields: [categoryId], references: [id], map: "Product_categoryId_fkey")
+
+  @@index([categoryId], map: "Product_categoryId_fkey")
+}
+
+model user {
+  id          Int       @id @default(autoincrement())
+  clerkUserId String    @unique(map: "User_clerkUserId_key")
+  email       String
+  role        user_role @default(CUSTOMER)
+  createdAt   DateTime  @default(now())
+  cart        cart?
+  order       order[]
+}
+
+enum user_role {
   ADMIN
   CUSTOMER
 }
 
-enum OrderStatus {
+enum order_status {
   PENDING
   PAID
   PROCESSING
@@ -131,7 +126,7 @@ enum OrderStatus {
   CANCELLED
 }
 
-enum DeliveryStatus {
+enum order_deliveryStatus {
   PROCESSING
   DISPATCHED
   DELIVERED
