@@ -1,15 +1,22 @@
-import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-only";
 
 export async function POST(
-  _: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
-  await prisma.product.delete({
-    where: { id: Number(params.id) },
-  });
+  await requireAdmin();
 
-  return NextResponse.redirect(
-    new URL('/admin/products', process.env.NEXT_PUBLIC_APP_URL)
-  );
+  const { id } = await context.params;
+  const productId = Number(id);
+
+  if (!Number.isFinite(productId)) {
+    return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
+  }
+
+  await prisma.product.delete({ where: { id: productId } });
+
+  // After deleting, send them back to products list (works with <form method="post">)
+  return NextResponse.redirect(new URL("/admin/products", req.url), 303);
 }
