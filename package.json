@@ -6,22 +6,42 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+
+    "migrate:dev": "cross-env DATABASE_URL=\"mysql://ajebo_migrate:%23Danielayo23@127.0.0.1:3306/ajebo_carpenter\" prisma migrate dev",
+    "migrate:deploy": "cross-env DATABASE_URL=\"mysql://ajebo_migrate:%23Danielayo23@127.0.0.1:3306/ajebo_carpenter\" prisma migrate deploy",
+    "generate": "prisma generate"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.36.5",
+    "@prisma/adapter-mariadb": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "@prisma/extension-accelerate": "^3.0.1",
+    "cloudinary": "^2.8.0",
+    "lucide-react": "^0.562.0",
+    "mariadb": "^3.4.5",
     "next": "16.1.1",
+    "prisma": "^7.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.1.18",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.23",
     "babel-plugin-react-compiler": "1.0.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
-    "tailwindcss": "^4",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }
