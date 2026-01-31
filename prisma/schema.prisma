@@ -6,86 +6,86 @@ datasource db {
   provider = "mysql"
 }
 
-model cart {
+model Cart {
   id        Int        @id @default(autoincrement())
-  userId    Int        @unique(map: "Cart_userId_key")
+  userId    Int        @unique
   createdAt DateTime   @default(now())
   updatedAt DateTime
-  user      user       @relation(fields: [userId], references: [id], map: "Cart_userId_fkey")
-  cartitem  cartitem[]
+  User      User       @relation(fields: [userId], references: [id])
+  CartItem  CartItem[]
 }
 
-model cartitem {
+model CartItem {
   id        Int      @id @default(autoincrement())
   cartId    Int
   productId Int
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime
-  cart      cart     @relation(fields: [cartId], references: [id], onDelete: Cascade, map: "CartItem_cartId_fkey")
-  product   product  @relation(fields: [productId], references: [id], map: "CartItem_productId_fkey")
+  Cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  Product   Product  @relation(fields: [productId], references: [id])
 
-  @@unique([cartId, productId], map: "CartItem_cartId_productId_key")
+  @@unique([cartId, productId])
   @@index([productId], map: "CartItem_productId_fkey")
 }
 
-model category {
+model Category {
   id        Int       @id @default(autoincrement())
-  name      String    @unique(map: "Category_name_key")
-  slug      String    @unique(map: "Category_slug_key")
+  name      String    @unique
+  slug      String    @unique
   sortOrder Int       @default(0)
-  products  product[]
+  Product   Product[]
 }
 
-model hero {
+model Hero {
   id                 Int     @id @default(autoincrement())
   backgroundImageUrl String
   active             Boolean @default(true)
 }
 
-model order {
+model Order {
   id             Int                  @id @default(autoincrement())
-  reference      String               @unique(map: "Order_reference_key")
+  reference      String               @unique
   userId         Int
   totalAmount    Int
-  status         order_status         @default(PENDING)
+  status         Order_status         @default(PENDING)
   createdAt      DateTime             @default(now())
   deliveredAt    DateTime?
-  deliveryStatus order_deliveryStatus @default(PROCESSING)
-  user           user                 @relation(fields: [userId], references: [id], map: "Order_userId_fkey")
-  orderitem      orderitem[]
-  payment        payment?
+  deliveryStatus Order_deliveryStatus @default(PROCESSING)
+  User           User                 @relation(fields: [userId], references: [id])
+  OrderItem      OrderItem[]
+  Payment        Payment?
 
   @@index([userId], map: "Order_userId_fkey")
 }
 
-model orderitem {
+model OrderItem {
   id        Int     @id @default(autoincrement())
   orderId   Int
   productId Int
   quantity  Int
   price     Int
-  order     order   @relation(fields: [orderId], references: [id], map: "OrderItem_orderId_fkey")
-  product   product @relation(fields: [productId], references: [id], map: "OrderItem_productId_fkey")
+  Order     Order   @relation(fields: [orderId], references: [id])
+  Product   Product @relation(fields: [productId], references: [id])
 
   @@index([orderId], map: "OrderItem_orderId_fkey")
   @@index([productId], map: "OrderItem_productId_fkey")
 }
 
-model payment {
+model Payment {
   id        Int       @id @default(autoincrement())
-  orderId   Int       @unique(map: "Payment_orderId_key")
+  orderId   Int       @unique
   provider  String
   reference String
   status    String
   paidAt    DateTime?
-  order     order     @relation(fields: [orderId], references: [id], map: "Payment_orderId_fkey")
+  Order     Order     @relation(fields: [orderId], references: [id])
 }
 
-model product {
+model Product {
   id          Int         @id @default(autoincrement())
   name        String
-  slug        String      @unique(map: "Product_slug_key")
+  slug        String      @unique
   description String      @db.Text
   price       Int
   imageUrl    String
@@ -94,29 +94,29 @@ model product {
   categoryId  Int
   createdAt   DateTime    @default(now())
   images      Json?
-  cartitem    cartitem[]
-  orderitem   orderitem[]
-  category    category    @relation(fields: [categoryId], references: [id], map: "Product_categoryId_fkey")
+  CartItem    CartItem[]
+  OrderItem   OrderItem[]
+  Category    Category    @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId], map: "Product_categoryId_fkey")
 }
 
-model user {
+model User {
   id          Int       @id @default(autoincrement())
-  clerkUserId String    @unique(map: "User_clerkUserId_key")
+  clerkUserId String    @unique
   email       String
-  role        user_role @default(CUSTOMER)
+  role        User_role @default(CUSTOMER)
   createdAt   DateTime  @default(now())
-  cart        cart?
-  order       order[]
+  Cart        Cart?
+  Order       Order[]
 }
 
-enum user_role {
+enum User_role {
   ADMIN
   CUSTOMER
 }
 
-enum order_status {
+enum Order_status {
   PENDING
   PAID
   PROCESSING
@@ -126,7 +126,7 @@ enum order_status {
   CANCELLED
 }
 
-enum order_deliveryStatus {
+enum Order_deliveryStatus {
   PROCESSING
   DISPATCHED
   DELIVERED
