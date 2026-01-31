@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Download, Filter as FilterIcon } from "lucide-react";
 
+
 type Tab = "summary" | "list";
 type Filter = "all" | "shipping" | "completed" | "cancelled";
 
@@ -156,7 +157,7 @@ export default async function AdminOrdersPage({
       deliveryStatus: string;
       createdAt: Date;
       user: { email: string };
-      items: Array<{ quantity: number; product: { name: string } }>;
+      orderitem: Array<{ quantity: number; product: { name: string } }>;
     }>;
     totalForList: number;
   } = {
@@ -209,7 +210,7 @@ export default async function AdminOrdersPage({
           deliveryStatus: true,
           createdAt: true,
           user: { select: { email: true } },
-          items: { select: { quantity: true, product: { select: { name: true } } }, take: 1 },
+          orderitem: { select: { quantity: true, product: { select: { name: true } } }, take: 1 },
         },
       }),
       prisma.order.count({ where: listWhere }),
@@ -392,7 +393,7 @@ export default async function AdminOrdersPage({
                       </tr>
                     ) : (
                       listData.orders.map((o) => {
-                        const productName = o.items?.[0]?.product?.name ?? "-";
+                        const productName = o.orderitem?.[0]?.product?.name ?? "-";
                         const paymentLabel = o.status === "PAID" ? "Paid" : "Unpaid";
                         const ds = o.deliveryStatus as DeliveryStatus;
                         const disabled = o.status !== "PAID" || ds === "DELIVERED";

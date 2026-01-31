@@ -1,7 +1,3 @@
-/* =========================================================
-   FILE: src/app/api/admin/orders/export/route.ts
-   (CSV download of filtered list)
-   ========================================================= */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-only";
@@ -31,13 +27,14 @@ export async function GET(req: Request) {
 
   if (filter === "cancelled") where.status = "CANCELLED";
   else if (filter === "completed") where.deliveryStatus = "DELIVERED";
-  else if (filter === "shipping") where.deliveryStatus = { in: ["PROCESSING", "DISPATCHED"] };
+  else if (filter === "shipping")
+    where.deliveryStatus = { in: ["PROCESSING", "DISPATCHED"] };
 
   if (q) {
     where.OR = [
       { reference: { contains: q } },
       { user: { email: { contains: q } } },
-      { items: { some: { product: { name: { contains: q } } } } },
+      { orderitem: { some: { product: { name: { contains: q } } } } }, // ✅ changed
     ];
   }
 
@@ -52,7 +49,7 @@ export async function GET(req: Request) {
       totalAmount: true,
       createdAt: true,
       user: { select: { email: true } },
-      items: {
+      orderitem: { // ✅ changed
         select: {
           quantity: true,
           product: { select: { name: true } },
@@ -75,7 +72,7 @@ export async function GET(req: Request) {
   ];
 
   const rows = orders.map((o) => {
-    const firstItem = o.items?.[0];
+    const firstItem = o.orderitem?.[0]; // ✅ changed
     const product = firstItem?.product?.name ?? "";
     const quantity = firstItem?.quantity ?? 0;
 

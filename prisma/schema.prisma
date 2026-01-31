@@ -34,7 +34,7 @@ model category {
   name      String    @unique(map: "Category_name_key")
   slug      String    @unique(map: "Category_slug_key")
   sortOrder Int       @default(0)
-  product   product[]
+  products  product[]
 }
 
 model hero {

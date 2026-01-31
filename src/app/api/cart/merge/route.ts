@@ -21,6 +21,7 @@ async function getOrCreateDbUser() {
 }
 
 export async function POST(req: Request) {
+  const now = new Date();
   const user = await getOrCreateDbUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -38,18 +39,18 @@ export async function POST(req: Request) {
 
   const cart = await prisma.cart.upsert({
     where: { userId: user.id },
-    update: {},
-    create: { userId: user.id },
+    update: { updatedAt: now },
+    create: { userId: user.id, updatedAt: now },
     select: { id: true },
   });
 
   // Merge by incrementing existing quantities
   await prisma.$transaction(
     cleaned.map((it) =>
-      prisma.cartItem.upsert({
+      prisma.cartitem.upsert({
         where: { cartId_productId: { cartId: cart.id, productId: it.productId } },
         update: { quantity: { increment: it.quantity } },
-        create: { cartId: cart.id, productId: it.productId, quantity: it.quantity },
+        create: { cartId: cart.id, productId: it.productId, quantity: it.quantity, updatedAt: now },
       })
     )
   );

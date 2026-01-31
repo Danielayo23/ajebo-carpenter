@@ -32,7 +32,7 @@ export default async function CategoriesPage() {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:gap-8">
           {categories.map((category) => {
-            const image = category.products?.[0]?.imageUrl ?? "";
+            const image = category.products[0]?.imageUrl ?? "";
 
             return (
               <Link
@@ -48,6 +48,7 @@ export default async function CategoriesPage() {
                       fill
                       className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      priority={false}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-gray-400">
@@ -71,4 +72,5 @@ export default async function CategoriesPage() {
     </div>
   );
 }
+
 

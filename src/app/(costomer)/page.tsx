@@ -13,7 +13,6 @@ export default function WelcomePage() {
   // slideshow state
   const [images, setImages] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [loaded, setLoaded] = useState(false);
 
   // welcome overlay (unchanged)
   useEffect(() => {
@@ -33,34 +32,33 @@ export default function WelcomePage() {
 
   // fetch slideshow images
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function loadHero() {
       try {
-        const res = await fetch('/api/hero-slideshow', { cache: 'no-store' });
-        const data = (await res.json()) as HeroPayload;
+        const res = await fetch('/api/hero-slideshow', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
 
+        const data = (await res.json()) as HeroPayload;
         const imgs = Array.isArray(data?.images) ? data.images.filter(Boolean) : [];
 
-        if (cancelled) return;
         setImages(imgs);
         setActiveIndex(0);
-        setLoaded(true);
       } catch {
-        if (cancelled) return;
+        // fail silently (keeps fallback background)
         setImages([]);
-        setLoaded(true);
+        setActiveIndex(0);
       }
     }
 
     loadHero();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
-  // rotate images every 6s (premium pacing)
+  // rotate images every 6s
   useEffect(() => {
     if (images.length <= 1) return;
 
@@ -115,7 +113,7 @@ export default function WelcomePage() {
               {/* Slideshow background */}
               <div className="absolute inset-0">
                 {images.length === 0 ? (
-                  <div className="h-full w-full" style={{ backgroundImage: fallbackBg }} />
+                  <div className="h-full w-full" style={{ background: fallbackBg }} />
                 ) : (
                   images.map((url, i) => {
                     const active = i === activeIndex;
@@ -130,7 +128,10 @@ export default function WelcomePage() {
                         ].join(' ')}
                       >
                         <div
-                          className={['h-full w-full bg-cover bg-center', active ? 'kenburns' : ''].join(' ')}
+                          className={[
+                            'h-full w-full bg-cover bg-center',
+                            active ? 'kenburns' : '',
+                          ].join(' ')}
                           style={{ backgroundImage: `url(${url})` }}
                         />
                       </div>
@@ -143,12 +144,12 @@ export default function WelcomePage() {
                 <div className="absolute inset-0 backdrop-blur-[1px]" />
               </div>
 
-              {/* CTA – pushed closer to bottom */}
+              {/* CTA */}
               <div className="relative z-10 flex h-full items-end justify-center pb-10 sm:pb-12">
                 <div className="rounded-xl bg-white/80 px-0 py-0 text-center backdrop-blur-md shadow-sm">
                   <Link
                     href="/categories"
-                    className="inline-block  bg-[#04209d] px-10 py-4 text-lg font-semibold text-white transition hover:opacity-100"
+                    className="inline-block bg-[#04209d] px-10 py-4 text-lg font-semibold text-white transition hover:opacity-100"
                   >
                     Shop Collection →
                   </Link>
@@ -173,8 +174,6 @@ export default function WelcomePage() {
             </div>
           </div>
         </section>
-
-        {loaded ? null : null}
       </main>
     </div>
   );

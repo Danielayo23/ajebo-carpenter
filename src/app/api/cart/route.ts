@@ -21,7 +21,7 @@ export async function GET() {
   const cart = await prisma.cart.findUnique({
     where: { userId: user.id },
     include: {
-      items: {
+      cartitem: {
         orderBy: { createdAt: "asc" },
         include: {
           product: {
@@ -42,8 +42,8 @@ export async function GET() {
   });
 
   const items =
-    cart?.items
-      .filter((it) => it.product?.active) // hide inactive
+    cart?.cartitem
+      .filter((it) => it.product?.active)
       .map((it) => ({
         id: it.productId,
         productId: it.productId,
@@ -64,6 +64,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await syncUser();
   if (!user) return json({ error: "Unauthorized" }, { status: 401 });
+
+  const now = new Date();
 
   const body = (await req.json().catch(() => null)) as
     | { productId?: number; quantity?: number }
@@ -86,56 +88,31 @@ export async function POST(req: Request) {
 
   const clampedQty = Math.min(quantity, product.stock);
 
-  // await prisma.cart.upsert({
-  //   where: { userId: user.id },
-  //   create: {
-  //     userId: user.id,
-  //     items: {
-  //       create: {
-  //         productId,
-  //         quantity: clampedQty,
-  //       },
-  //     },
-  //   },
-  //   update: {
-  //     items: {
-  //       upsert: {
-  //         where: { cartId_productId: { cartId: user.id, productId } }, // this won't work; cartId != userId
-  //         create: { productId, quantity: clampedQty },
-  //         update: {}, // filled below
-  //       },
-  //     },
-  //   },
-  // });
-
-  // Because cartId is not userId, we do a safe 2-step upsert:
   const cart = await prisma.cart.upsert({
     where: { userId: user.id },
-    create: { userId: user.id },
-    update: {},
+    create: { userId: user.id, updatedAt: now },
+    update: { updatedAt: now },
     select: { id: true },
   });
 
-  await prisma.cartItem.upsert({
+  await prisma.cartitem.upsert({
     where: { cartId_productId: { cartId: cart.id, productId } },
-    create: { cartId: cart.id, productId, quantity: clampedQty },
+    create: { cartId: cart.id, productId, quantity: clampedQty, updatedAt: now },
     update: {
-      quantity: {
-        increment: clampedQty,
-      },
+      quantity: { increment: clampedQty },
+      updatedAt: now,
     },
   });
 
-  // Clamp again (in case increment exceeded stock)
-  const updated = await prisma.cartItem.findUnique({
+  const updated = await prisma.cartitem.findUnique({
     where: { cartId_productId: { cartId: cart.id, productId } },
     select: { quantity: true },
   });
 
   if (updated?.quantity && updated.quantity > product.stock) {
-    await prisma.cartItem.update({
+    await prisma.cartitem.update({
       where: { cartId_productId: { cartId: cart.id, productId } },
-      data: { quantity: product.stock },
+      data: { quantity: product.stock, updatedAt: now },
     });
   }
 
@@ -145,6 +122,8 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   const user = await syncUser();
   if (!user) return json({ error: "Unauthorized" }, { status: 401 });
+
+  const now = new Date();
 
   const body = (await req.json().catch(() => null)) as
     | { productId?: number; quantity?: number }
@@ -172,15 +151,20 @@ export async function PATCH(req: Request) {
   const clamped = Math.min(quantity, Math.max(0, product.stock));
 
   if (clamped <= 0) {
-    await prisma.cartItem.delete({
-      where: { cartId_productId: { cartId: cart.id, productId } },
-    }).catch(() => {});
+    await prisma.cartitem
+      .delete({ where: { cartId_productId: { cartId: cart.id, productId } } })
+      .catch(() => {});
     return json({ ok: true });
   }
 
-  await prisma.cartItem.update({
+  await prisma.cartitem.update({
     where: { cartId_productId: { cartId: cart.id, productId } },
-    data: { quantity: clamped },
+    data: { quantity: clamped, updatedAt: now },
+  });
+
+  await prisma.cart.update({
+    where: { id: cart.id },
+    data: { updatedAt: now },
   });
 
   return json({ ok: true });
@@ -205,11 +189,14 @@ export async function DELETE(req: Request) {
   });
   if (!cart) return json({ ok: true });
 
-  await prisma.cartItem
-    .delete({
-      where: { cartId_productId: { cartId: cart.id, productId } },
-    })
+  await prisma.cartitem
+    .delete({ where: { cartId_productId: { cartId: cart.id, productId } } })
     .catch(() => {});
+
+  await prisma.cart.update({
+    where: { id: cart.id },
+    data: { updatedAt: new Date() },
+  });
 
   return json({ ok: true });
 }
