@@ -27,14 +27,17 @@ model CartItem {
 
   @@unique([cartId, productId])
   @@index([productId], map: "CartItem_productId_fkey")
+  @@map("cartitem")
 }
 
 model Category {
   id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
+  name      String    @unique(map: "Category_name_key")
+  slug      String    @unique(map: "Category_slug_key")
   sortOrder Int       @default(0)
-  Product   Product[]
+  products  Product[]
+
+  @@map("category")
 }
 
 model Hero {
@@ -52,7 +55,7 @@ model Order {
   createdAt      DateTime             @default(now())
   deliveredAt    DateTime?
   deliveryStatus Order_deliveryStatus @default(PROCESSING)
-  User           User                 @relation(fields: [userId], references: [id])
+  user           User                 @relation(fields: [userId], references: [id])
   OrderItem      OrderItem[]
   Payment        Payment?
 
@@ -70,6 +73,7 @@ model OrderItem {
 
   @@index([orderId], map: "OrderItem_orderId_fkey")
   @@index([productId], map: "OrderItem_productId_fkey")
+  @@map("orderitem")
 }
 
 model Payment {
@@ -85,7 +89,7 @@ model Payment {
 model Product {
   id          Int         @id @default(autoincrement())
   name        String
-  slug        String      @unique
+  slug        String      @unique(map: "Product_slug_key")
   description String      @db.Text
   price       Int
   imageUrl    String
@@ -96,9 +100,10 @@ model Product {
   images      Json?
   CartItem    CartItem[]
   OrderItem   OrderItem[]
-  Category    Category    @relation(fields: [categoryId], references: [id])
+  category    Category    @relation(fields: [categoryId], references: [id], map: "Product_categoryId_fkey")
 
   @@index([categoryId], map: "Product_categoryId_fkey")
+  @@map("product")
 }
 
 model User {
