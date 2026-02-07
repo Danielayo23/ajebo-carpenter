@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function CustomerFooter() {
   return (
@@ -7,9 +8,15 @@ export default function CustomerFooter() {
         <div className="grid gap-10 md:grid-cols-3">
           {/* Brand */}
           <div>
-            <h3 className="text-lg font-semibold">Ajebo Carpenter</h3>
             <p className="mt-4 text-sm opacity-90">
-              ajebocarpenter.com
+              <Image
+                        src="/AJEBO LOGO jpg_1.jpg"
+                        alt="Ajebo Carpenter Logo"
+                        width={100}
+                        height={48}
+                        priority
+                        />
+                     
               <br />
               +234 815 464 2381
             </p>

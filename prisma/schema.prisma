@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,49 +12,45 @@ model User {
   email       String
   role        Role     @default(CUSTOMER)
   createdAt   DateTime @default(now())
-
-  orders Order[]
-  cart   Cart?
+  cart        Cart?
+  orders      Order[]
 }
 
 model Category {
-  id        Int    @id @default(autoincrement())
-  name      String @unique
-  slug      String @unique
-  sortOrder Int    @default(0)
-
-  products Product[]
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  sortOrder Int       @default(0)
+  products  Product[]
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
-  slug        String   @unique
-  description String   @db.Text
-  price       Int // store in kobo
+  slug        String      @unique
+  description String      @db.Text
+  price       Int
   imageUrl    String
-  images      Json? // array of extra image urls
   stock       Int
-  active      Boolean  @default(true)
+  active      Boolean     @default(true)
   categoryId  Int
-  createdAt   DateTime @default(now())
-
-  category   Category    @relation(fields: [categoryId], references: [id])
-  orderItems OrderItem[]
-  cartItems  CartItem[]
+  createdAt   DateTime    @default(now())
+  images      Json?
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  category    Category    @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId], map: "Product_categoryId_fkey")
   @@map("product")
 }
 
 model Cart {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user  User       @relation(fields: [userId], references: [id])
-  items CartItem[]
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
 }
 
 model CartItem {
@@ -66,9 +60,8 @@ model CartItem {
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
 
   @@unique([cartId, productId])
   @@index([productId], map: "CartItem_productId_fkey")
@@ -81,27 +74,25 @@ model Order {
   userId         Int
   totalAmount    Int
   status         OrderStatus    @default(PENDING)
-  deliveryStatus DeliveryStatus @default(PROCESSING)
-  deliveredAt    DateTime?
   createdAt      DateTime       @default(now())
-
-  user       User        @relation(fields: [userId], references: [id])
-  orderItems OrderItem[]
-  payment    Payment?
+  deliveredAt    DateTime?
+  deliveryStatus DeliveryStatus @default(PROCESSING)
+  user           User           @relation(fields: [userId], references: [id])
+  payment        Payment?
+  orderItems     OrderItem[]
 
   @@index([userId], map: "Order_userId_fkey")
   @@map("Order")
 }
 
 model OrderItem {
-  id        Int @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   orderId   Int
   productId Int
   quantity  Int
   price     Int
-
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 
   @@index([orderId], map: "OrderItem_orderId_fkey")
   @@index([productId], map: "OrderItem_productId_fkey")
@@ -115,10 +106,9 @@ model Payment {
   reference       String    @unique(map: "Payment_reference_fkey")
   status          String
   createdAt       DateTime? @default(now())
-  paystackRef     String?   @map("paystack_ref")
   paystackPayload Json?     @map("paystack_payload")
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paystackRef     String?   @map("paystack_ref")
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("Payment")
 }

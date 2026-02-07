@@ -8,6 +8,9 @@ export default async function NewProductPage() {
     orderBy: { name: "asc" },
   });
 
+
+  console.log("CATEGORIES COUNT:", categories.length);
+
   async function createProduct(formData: FormData) {
     "use server";
 
