@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     where.OR = [
       { reference: { contains: q } },
       { user: { email: { contains: q } } },
-      { orderitem: { some: { product: { name: { contains: q } } } } }, // ✅ changed
+      { items: { some: { product: { name: { contains: q } } } } },
     ];
   }
 
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       totalAmount: true,
       createdAt: true,
       user: { select: { email: true } },
-      orderitem: { // ✅ changed
+      orderItems: {
         select: {
           quantity: true,
           product: { select: { name: true } },
@@ -71,8 +71,8 @@ export async function GET(req: Request) {
     "created_at",
   ];
 
-  const rows = orders.map((o) => {
-    const firstItem = o.orderitem?.[0]; // ✅ changed
+  const rows = (orders as any[]).map((o:any) => {
+    const firstItem = o.items?.[0];
     const product = firstItem?.product?.name ?? "";
     const quantity = firstItem?.quantity ?? 0;
 
@@ -91,7 +91,7 @@ export async function GET(req: Request) {
     ].map(csvEscape);
   });
 
-  const csv = [header.map(csvEscape).join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const csv = [header.map(csvEscape).join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
 
   const stamp = new Date().toISOString().slice(0, 10);
   const filename = `orders_${filter}_${stamp}.csv`;

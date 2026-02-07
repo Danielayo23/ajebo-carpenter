@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,13 +8,55 @@ datasource db {
   provider = "mysql"
 }
 
+model User {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String   @unique
+  email       String
+  role        Role     @default(CUSTOMER)
+  createdAt   DateTime @default(now())
+
+  orders Order[]
+  cart   Cart?
+}
+
+model Category {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  slug      String @unique
+  sortOrder Int    @default(0)
+
+  products Product[]
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String   @db.Text
+  price       Int // store in kobo
+  imageUrl    String
+  images      Json? // array of extra image urls
+  stock       Int
+  active      Boolean  @default(true)
+  categoryId  Int
+  createdAt   DateTime @default(now())
+
+  category   Category    @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  @@index([categoryId], map: "Product_categoryId_fkey")
+  @@map("product")
+}
+
 model Cart {
-  id        Int        @id @default(autoincrement())
-  userId    Int        @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime
-  User      User       @relation(fields: [userId], references: [id])
-  CartItem  CartItem[]
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
 }
 
 model CartItem {
@@ -21,23 +65,62 @@ model CartItem {
   productId Int
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
-  updatedAt DateTime
-  Cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  Product   Product  @relation(fields: [productId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
 
   @@unique([cartId, productId])
   @@index([productId], map: "CartItem_productId_fkey")
   @@map("cartitem")
 }
 
-model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique(map: "Category_name_key")
-  slug      String    @unique(map: "Category_slug_key")
-  sortOrder Int       @default(0)
-  products  Product[]
+model Order {
+  id             Int            @id @default(autoincrement())
+  reference      String         @unique
+  userId         Int
+  totalAmount    Int
+  status         OrderStatus    @default(PENDING)
+  deliveryStatus DeliveryStatus @default(PROCESSING)
+  deliveredAt    DateTime?
+  createdAt      DateTime       @default(now())
 
-  @@map("category")
+  user       User        @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+  payment    Payment?
+
+  @@index([userId], map: "Order_userId_fkey")
+  @@map("Order")
+}
+
+model OrderItem {
+  id        Int @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Int
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId], map: "OrderItem_orderId_fkey")
+  @@index([productId], map: "OrderItem_productId_fkey")
+  @@map("orderitem")
+}
+
+model Payment {
+  id              Int       @id @default(autoincrement())
+  orderId         Int       @unique(map: "Payment_orderId_fkey")
+  provider        String
+  reference       String    @unique(map: "Payment_reference_fkey")
+  status          String
+  createdAt       DateTime? @default(now())
+  paystackRef     String?   @map("paystack_ref")
+  paystackPayload Json?     @map("paystack_payload")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("Payment")
 }
 
 model Hero {
@@ -46,82 +129,12 @@ model Hero {
   active             Boolean @default(true)
 }
 
-model Order {
-  id             Int                  @id @default(autoincrement())
-  reference      String               @unique
-  userId         Int
-  totalAmount    Int
-  status         Order_status         @default(PENDING)
-  createdAt      DateTime             @default(now())
-  deliveredAt    DateTime?
-  deliveryStatus Order_deliveryStatus @default(PROCESSING)
-  user           User                 @relation(fields: [userId], references: [id])
-  OrderItem      OrderItem[]
-  Payment        Payment?
-
-  @@index([userId], map: "Order_userId_fkey")
-}
-
-model OrderItem {
-  id        Int     @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  price     Int
-  Order     Order   @relation(fields: [orderId], references: [id])
-  Product   Product @relation(fields: [productId], references: [id])
-
-  @@index([orderId], map: "OrderItem_orderId_fkey")
-  @@index([productId], map: "OrderItem_productId_fkey")
-  @@map("orderitem")
-}
-
-model Payment {
-  id        Int       @id @default(autoincrement())
-  orderId   Int       @unique
-  provider  String
-  reference String
-  status    String
-  paidAt    DateTime?
-  Order     Order     @relation(fields: [orderId], references: [id])
-}
-
-model Product {
-  id          Int         @id @default(autoincrement())
-  name        String
-  slug        String      @unique(map: "Product_slug_key")
-  description String      @db.Text
-  price       Int
-  imageUrl    String
-  stock       Int
-  active      Boolean     @default(true)
-  categoryId  Int
-  createdAt   DateTime    @default(now())
-  images      Json?
-  CartItem    CartItem[]
-  OrderItem   OrderItem[]
-  category    Category    @relation(fields: [categoryId], references: [id], map: "Product_categoryId_fkey")
-
-  @@index([categoryId], map: "Product_categoryId_fkey")
-  @@map("product")
-}
-
-model User {
-  id          Int       @id @default(autoincrement())
-  clerkUserId String    @unique
-  email       String
-  role        User_role @default(CUSTOMER)
-  createdAt   DateTime  @default(now())
-  Cart        Cart?
-  Order       Order[]
-}
-
-enum User_role {
+enum Role {
   ADMIN
   CUSTOMER
 }
 
-enum Order_status {
+enum OrderStatus {
   PENDING
   PAID
   PROCESSING
@@ -131,7 +144,7 @@ enum Order_status {
   CANCELLED
 }
 
-enum Order_deliveryStatus {
+enum DeliveryStatus {
   PROCESSING
   DISPATCHED
   DELIVERED

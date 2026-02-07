@@ -146,7 +146,7 @@ export default async function AdminDashboardPage() {
   });
 
   // 4) Best sellers (top 10 by units in last 30 days; only PAID orders)
-  const topItems = await prisma.orderitem.groupBy({
+  const topItems = await prisma.orderItem.groupBy({
     by: ["productId"],
     _sum: { quantity: true },
     where: {

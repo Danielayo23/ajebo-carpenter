@@ -21,7 +21,7 @@ export async function GET() {
   const cart = await prisma.cart.findUnique({
     where: { userId: user.id },
     include: {
-      cartitem: {
+      items: {
         orderBy: { createdAt: "asc" },
         include: {
           product: {
@@ -42,7 +42,7 @@ export async function GET() {
   });
 
   const items =
-    cart?.cartitem
+    cart?.items
       .filter((it) => it.product?.active)
       .map((it) => ({
         id: it.productId,
@@ -57,15 +57,12 @@ export async function GET() {
       })) ?? [];
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-
   return json({ items, subtotal });
 }
 
 export async function POST(req: Request) {
   const user = await syncUser();
   if (!user) return json({ error: "Unauthorized" }, { status: 401 });
-
-  const now = new Date();
 
   const body = (await req.json().catch(() => null)) as
     | { productId?: number; quantity?: number }
@@ -83,36 +80,34 @@ export async function POST(req: Request) {
     select: { id: true, stock: true, active: true },
   });
 
-  if (!product || !product.active) return json({ error: "Product not found" }, { status: 404 });
+  if (!product || !product.active)
+    return json({ error: "Product not found" }, { status: 404 });
   if (product.stock <= 0) return json({ error: "Out of stock" }, { status: 409 });
 
   const clampedQty = Math.min(quantity, product.stock);
 
   const cart = await prisma.cart.upsert({
     where: { userId: user.id },
-    create: { userId: user.id, updatedAt: now },
-    update: { updatedAt: now },
+    create: { userId: user.id },
+    update: {},
     select: { id: true },
   });
 
-  await prisma.cartitem.upsert({
+  await prisma.cartItem.upsert({
     where: { cartId_productId: { cartId: cart.id, productId } },
-    create: { cartId: cart.id, productId, quantity: clampedQty, updatedAt: now },
-    update: {
-      quantity: { increment: clampedQty },
-      updatedAt: now,
-    },
+    create: { cartId: cart.id, productId, quantity: clampedQty },
+    update: { quantity: { increment: clampedQty } },
   });
 
-  const updated = await prisma.cartitem.findUnique({
+  const updated = await prisma.cartItem.findUnique({
     where: { cartId_productId: { cartId: cart.id, productId } },
     select: { quantity: true },
   });
 
   if (updated?.quantity && updated.quantity > product.stock) {
-    await prisma.cartitem.update({
+    await prisma.cartItem.update({
       where: { cartId_productId: { cartId: cart.id, productId } },
-      data: { quantity: product.stock, updatedAt: now },
+      data: { quantity: product.stock },
     });
   }
 
@@ -122,8 +117,6 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   const user = await syncUser();
   if (!user) return json({ error: "Unauthorized" }, { status: 401 });
-
-  const now = new Date();
 
   const body = (await req.json().catch(() => null)) as
     | { productId?: number; quantity?: number }
@@ -146,25 +139,23 @@ export async function PATCH(req: Request) {
     where: { id: productId },
     select: { stock: true, active: true },
   });
-  if (!product || !product.active) return json({ error: "Product not found" }, { status: 404 });
+  if (!product || !product.active)
+    return json({ error: "Product not found" }, { status: 404 });
 
   const clamped = Math.min(quantity, Math.max(0, product.stock));
 
   if (clamped <= 0) {
-    await prisma.cartitem
-      .delete({ where: { cartId_productId: { cartId: cart.id, productId } } })
+    await prisma.cartItem
+      .delete({
+        where: { cartId_productId: { cartId: cart.id, productId } },
+      })
       .catch(() => {});
     return json({ ok: true });
   }
 
-  await prisma.cartitem.update({
+  await prisma.cartItem.update({
     where: { cartId_productId: { cartId: cart.id, productId } },
-    data: { quantity: clamped, updatedAt: now },
-  });
-
-  await prisma.cart.update({
-    where: { id: cart.id },
-    data: { updatedAt: now },
+    data: { quantity: clamped },
   });
 
   return json({ ok: true });
@@ -189,14 +180,11 @@ export async function DELETE(req: Request) {
   });
   if (!cart) return json({ ok: true });
 
-  await prisma.cartitem
-    .delete({ where: { cartId_productId: { cartId: cart.id, productId } } })
+  await prisma.cartItem
+    .delete({
+      where: { cartId_productId: { cartId: cart.id, productId } },
+    })
     .catch(() => {});
-
-  await prisma.cart.update({
-    where: { id: cart.id },
-    data: { updatedAt: new Date() },
-  });
 
   return json({ ok: true });
 }

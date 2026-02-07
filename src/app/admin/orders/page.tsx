@@ -13,7 +13,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Download, Filter as FilterIcon } from "lucide-react";
 
-
 type Tab = "summary" | "list";
 type Filter = "all" | "shipping" | "completed" | "cancelled";
 
@@ -157,7 +156,7 @@ export default async function AdminOrdersPage({
       deliveryStatus: string;
       createdAt: Date;
       user: { email: string };
-      orderitem: Array<{ quantity: number; product: { name: string } }>;
+      orderItems: Array<{ quantity: number; product: { name: string } }>;
     }>;
     totalForList: number;
   } = {
@@ -192,7 +191,8 @@ export default async function AdminOrdersPage({
       listWhere.OR = [
         { reference: { contains: q } },
         { user: { email: { contains: q } } },
-        { items: { some: { product: { name: { contains: q } } } } },
+        // ✅ FIX: Order relation is orderItems (not items / orderitem)
+        { orderItems: { some: { product: { name: { contains: q } } } } },
       ];
     }
 
@@ -210,7 +210,10 @@ export default async function AdminOrdersPage({
           deliveryStatus: true,
           createdAt: true,
           user: { select: { email: true } },
-          orderitem: { select: { quantity: true, product: { select: { name: true } } }, take: 1 },
+          orderItems: {
+            select: { quantity: true, product: { select: { name: true } } },
+            take: 1,
+          },
         },
       }),
       prisma.order.count({ where: listWhere }),
@@ -270,73 +273,84 @@ export default async function AdminOrdersPage({
       <div className="space-y-6">
         <OrdersTopTabs />
 
-      {/* SUMMARY TAB */}
-      {tab === "summary" && (
-        <>
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="text-xs font-medium text-gray-500">Total Orders</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{summaryData.totalOrders.toLocaleString()}</div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="text-xs font-medium text-gray-500">Pending</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{summaryData.pendingOrders.toLocaleString()}</div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="text-xs font-medium text-gray-500">Completed</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{summaryData.completedOrders.toLocaleString()}</div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="text-xs font-medium text-gray-500">Cancelled</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{summaryData.cancelledOrders.toLocaleString()}</div>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="text-sm font-semibold text-gray-900">Recent Activity</div>
-              <div className="mt-4 space-y-3">
-                {summaryData.recentActivity.length === 0 ? (
-                  <div className="text-sm text-gray-500">No activity yet.</div>
-                ) : (
-                  summaryData.recentActivity.map((o) => {
-                    const msg =
-                      o.status === "CANCELLED"
-                        ? `Order #${o.id} cancelled`
-                        : o.deliveryStatus === "DELIVERED"
-                        ? `Order #${o.id} delivered`
-                        : o.deliveryStatus === "DISPATCHED"
-                        ? `Order #${o.id} shipped`
-                        : `New order #${o.id} received`;
-
-                    return (
-                      <div key={o.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                        <div className="text-sm font-medium text-gray-800">{msg}</div>
-                        <div className="text-xs text-gray-500">{timeAgo(o.createdAt)}</div>
-                      </div>
-                    );
-                  })
-                )}
+        {/* SUMMARY TAB */}
+        {tab === "summary" && (
+          <>
+            <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="text-xs font-medium text-gray-500">Total Orders</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {summaryData.totalOrders.toLocaleString()}
+                </div>
               </div>
-            </div>
 
-            <OrdersDonutChart
-              title="Order Status Overview"
-              centerValue={summaryData.totalOrders}
-              centerLabel="Total Orders"
-              slices={[
-                { label: "Delivered", value: summaryData.deliveredCount, color: "#22c55e" },
-                { label: "Shipped", value: summaryData.dispatchedCount, color: "#3b82f6" },
-                { label: "Pending", value: summaryData.processingCount, color: "#f59e0b" },
-                { label: "Cancelled", value: summaryData.cancelledOrders, color: "#ef4444" },
-              ]}
-            />
-          </section>
-        </>
-      )}
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="text-xs font-medium text-gray-500">Pending</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {summaryData.pendingOrders.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="text-xs font-medium text-gray-500">Completed</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {summaryData.completedOrders.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="text-xs font-medium text-gray-500">Cancelled</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {summaryData.cancelledOrders.toLocaleString()}
+                </div>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="text-sm font-semibold text-gray-900">Recent Activity</div>
+                <div className="mt-4 space-y-3">
+                  {summaryData.recentActivity.length === 0 ? (
+                    <div className="text-sm text-gray-500">No activity yet.</div>
+                  ) : (
+                    summaryData.recentActivity.map((o) => {
+                      const msg =
+                        o.status === "CANCELLED"
+                          ? `Order #${o.id} cancelled`
+                          : o.deliveryStatus === "DELIVERED"
+                          ? `Order #${o.id} delivered`
+                          : o.deliveryStatus === "DISPATCHED"
+                          ? `Order #${o.id} shipped`
+                          : `New order #${o.id} received`;
+
+                      return (
+                        <div
+                          key={o.id}
+                          className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"
+                        >
+                          <div className="text-sm font-medium text-gray-800">{msg}</div>
+                          <div className="text-xs text-gray-500">{timeAgo(o.createdAt)}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <OrdersDonutChart
+                title="Order Status Overview"
+                centerValue={summaryData.totalOrders}
+                centerLabel="Total Orders"
+                slices={[
+                  { label: "Delivered", value: summaryData.deliveredCount, color: "#22c55e" },
+                  { label: "Shipped", value: summaryData.dispatchedCount, color: "#3b82f6" },
+                  { label: "Pending", value: summaryData.processingCount, color: "#f59e0b" },
+                  { label: "Cancelled", value: summaryData.cancelledOrders, color: "#ef4444" },
+                ]}
+              />
+            </section>
+          </>
+        )}
 
         {/* LIST TAB */}
         {tab === "list" && (
@@ -353,7 +367,6 @@ export default async function AdminOrdersPage({
                   <FilterIcon size={16} />
                 </button>
 
-                {/* ✅ FIX: missing <a> opening tag */}
                 <a
                   href={exportUrl}
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
@@ -366,11 +379,11 @@ export default async function AdminOrdersPage({
 
             <OrdersFilters counts={listData.counts} />
 
-            <section >
+            <section>
               <div className="mt-5 overflow-hidden rounded-2xl p-4 shadow-sm ring-1 ring-gray-200">
-      <table className="w-full min-w-[980px] text-sm">
+                <table className="w-full min-w-[980px] text-sm">
                   <thead>
-                   <tr className="text-left text-xs font-semibold text-gray-600">
+                    <tr className="text-left text-xs font-semibold text-gray-600">
                       <th className="py-3 pr-3 ">
                         <input type="checkbox" aria-label="Select all" />
                       </th>
@@ -393,7 +406,7 @@ export default async function AdminOrdersPage({
                       </tr>
                     ) : (
                       listData.orders.map((o) => {
-                        const productName = o.orderitem?.[0]?.product?.name ?? "-";
+                        const productName = o.orderItems?.[0]?.product?.name ?? "-";
                         const paymentLabel = o.status === "PAID" ? "Paid" : "Unpaid";
                         const ds = o.deliveryStatus as DeliveryStatus;
                         const disabled = o.status !== "PAID" || ds === "DELIVERED";
@@ -411,7 +424,9 @@ export default async function AdminOrdersPage({
                             </td>
 
                             <td className="py-3 pr-3 text-gray-800">{o.user.email}</td>
-                            <td className="py-3 pr-3 text-gray-800">{formatNgnFromKobo(o.totalAmount)}</td>
+                            <td className="py-3 pr-3 text-gray-800">
+                              {formatNgnFromKobo(o.totalAmount)}
+                            </td>
                             <td className="py-3 pr-3 text-gray-600">{formatDate(o.createdAt)}</td>
 
                             <td className="py-3 pr-3">
@@ -445,26 +460,24 @@ export default async function AdminOrdersPage({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* ✅ FIX: missing <a> opening tag */}
                   <a
                     className={`rounded-xl bg-white px-3 py-2 shadow-sm transition ${
                       page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
                     }`}
-                    href={`/admin/orders?tab=list&filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${
-                      page - 1
-                    }`}
+                    href={`/admin/orders?tab=list&filter=${filter}${
+                      q ? `&q=${encodeURIComponent(q)}` : ""
+                    }&page=${page - 1}`}
                   >
                     Prev
                   </a>
 
-                  {/* ✅ FIX: missing <a> opening tag */}
                   <a
                     className={`rounded-xl bg-white px-3 py-2 shadow-sm transition ${
                       page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
                     }`}
-                    href={`/admin/orders?tab=list&filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${
-                      page + 1
-                    }`}
+                    href={`/admin/orders?tab=list&filter=${filter}${
+                      q ? `&q=${encodeURIComponent(q)}` : ""
+                    }&page=${page + 1}`}
                   >
                     Next
                   </a>
