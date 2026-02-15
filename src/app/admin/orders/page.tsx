@@ -380,27 +380,38 @@ export default async function AdminOrdersPage({
             <OrdersFilters counts={listData.counts} />
 
             <section>
-              <div className="mt-5 overflow-hidden rounded-2xl p-4 shadow-sm ring-1 ring-gray-200">
-                <table className="w-full min-w-[980px] text-sm">
+              <div className="mt-5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
+                <table className="w-full table-fixed text-sm">
                   <thead>
                     <tr className="text-left text-xs font-semibold text-gray-600">
-                      <th className="py-3 pr-3 ">
+                      {/* Hide checkbox on very small screens */}
+                      <th className="w-10 py-3 pl-3 pr-3 hidden sm:table-cell">
                         <input type="checkbox" aria-label="Select all" />
                       </th>
-                      <th className="py-3 pr-3">Orders</th>
-                      <th className="py-3 pr-3">Customer</th>
-                      <th className="py-3 pr-3">Price</th>
-                      <th className="py-3 pr-3">Date</th>
-                      <th className="py-3 pr-3">Payment</th>
-                      <th className="py-3 pr-3">Status</th>
-                      <th className="py-3 pr-3 text-right">Action</th>
+
+                      <th className="py-3 pl-3 pr-3 w-[42%] sm:w-[34%]">Orders</th>
+
+                      {/* Hide Customer column on mobile (we show it inside Orders instead) */}
+                      <th className="py-3 pr-3 w-[22%] hidden md:table-cell">Customer</th>
+
+                      <th className="py-3 pr-3 w-[14%]">Price</th>
+
+                      {/* Hide Date on mobile */}
+                      <th className="py-3 pr-3 w-[12%] hidden lg:table-cell">Date</th>
+
+                      {/* Hide Payment on mobile */}
+                      <th className="py-3 pr-3 w-[10%] hidden lg:table-cell">Payment</th>
+
+                      <th className="py-3 pr-3 w-[12%]">Status</th>
+
+                      <th className="py-3 pr-3 w-[120px] text-right">Action</th>
                     </tr>
                   </thead>
 
                   <tbody>
                     {listData.orders.length === 0 ? (
                       <tr>
-                        <td className="py-8 text-gray-500" colSpan={8}>
+                        <td className="py-8 px-3 text-gray-500" colSpan={8}>
                           No orders found.
                         </td>
                       </tr>
@@ -413,31 +424,60 @@ export default async function AdminOrdersPage({
 
                         return (
                           <tr key={o.id} className="border-b last:border-b-0">
-                            <td className="py-3 pr-3">
+                            {/* checkbox hidden on xs */}
+                            <td className="py-3 pl-3 pr-3 hidden sm:table-cell align-top">
                               <input type="checkbox" aria-label={`Select order ${o.id}`} />
                             </td>
 
-                            <td className="py-3 pr-3">
-                              <div className="font-medium text-[#04209d]">#{o.id}</div>
-                              <div className="text-xs text-gray-500">{productName}</div>
-                              <div className="text-[11px] text-gray-400">{o.reference}</div>
+                            {/* Orders column (compact + contains mobile-only info) */}
+                            <td className="py-3 pl-3 pr-3 align-top">
+                              <div className="min-w-0">
+                                <div className="font-medium text-[#04209d] truncate">#{o.id}</div>
+
+                                <div className="text-xs text-gray-500 truncate">{productName}</div>
+
+                                {/* Reference can be long: truncate */}
+                                <div className="text-[11px] text-gray-400 truncate">{o.reference}</div>
+
+                                {/* Mobile-only: show customer + date + payment inside Orders */}
+                                <div className="mt-1 space-y-1 md:hidden">
+                                  <div className="text-xs text-gray-700 truncate">{o.user.email}</div>
+                                  <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                                    <span className="truncate">{formatDate(o.createdAt)}</span>
+                                    <span className="shrink-0">•</span>
+                                    <span className="shrink-0">{paymentLabel}</span>
+                                  </div>
+                                </div>
+                              </div>
                             </td>
 
-                            <td className="py-3 pr-3 text-gray-800">{o.user.email}</td>
-                            <td className="py-3 pr-3 text-gray-800">
+                            {/* Customer (hidden on mobile) */}
+                            <td className="py-3 pr-3 text-gray-800 hidden md:table-cell align-top">
+                              <div className="truncate">{o.user.email}</div>
+                            </td>
+
+                            {/* Price */}
+                            <td className="py-3 pr-3 text-gray-800 align-top whitespace-nowrap">
                               {formatNgnFromKobo(o.totalAmount)}
                             </td>
-                            <td className="py-3 pr-3 text-gray-600">{formatDate(o.createdAt)}</td>
 
-                            <td className="py-3 pr-3">
+                            {/* Date (hidden on mobile) */}
+                            <td className="py-3 pr-3 text-gray-600 hidden lg:table-cell align-top whitespace-nowrap">
+                              {formatDate(o.createdAt)}
+                            </td>
+
+                            {/* Payment (hidden on mobile) */}
+                            <td className="py-3 pr-3 hidden lg:table-cell align-top">
                               <PaymentPill value={paymentLabel} />
                             </td>
 
-                            <td className="py-3 pr-3">
+                            {/* Status */}
+                            <td className="py-3 pr-3 align-top">
                               <DeliveryPill value={ds} />
                             </td>
 
-                            <td className="py-3 pr-3 text-right">
+                            {/* Action */}
+                            <td className="py-3 pr-3 text-right align-top">
                               <OrderStatusActions
                                 orderId={o.id}
                                 deliveryStatus={ds}
@@ -452,6 +492,7 @@ export default async function AdminOrdersPage({
                   </tbody>
                 </table>
               </div>
+
 
               <div className="mt-5 flex items-center justify-between text-xs text-gray-500">
                 <div>

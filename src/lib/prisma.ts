@@ -21,7 +21,7 @@ function getMariaDbPoolConfig() {
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database,
-    connectionLimit: 10,
+    connectionLimit: process.env.NODE_ENV === "production"? 10 : 20,
     // Helps avoid slow hangs on Windows when connection is wrong
     connectTimeout: 10_000,
   };

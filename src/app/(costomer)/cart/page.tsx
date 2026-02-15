@@ -28,6 +28,9 @@ export default function CartPage() {
   const [items, setItems] = useState<CartRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+
   async function load() {
     setLoading(true);
     try {
@@ -77,6 +80,49 @@ export default function CartPage() {
       body: JSON.stringify({ productId }),
     }).catch(() => {});
   };
+
+  const onPayWithPaystack = async () => {
+    setPayError(null);
+    setPaying(true);
+
+    try {
+      // ✅ Idempotency key (Option A)
+      let checkoutKey = sessionStorage.getItem("ajebo_checkout_key");
+      if (!checkoutKey) {
+        checkoutKey = crypto.randomUUID();
+        sessionStorage.setItem("ajebo_checkout_key", checkoutKey);
+      }
+
+      const res = await fetch("/api/checkout/paystack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkoutKey }), // ✅ send key
+      });
+
+      if (res.status === 401) {
+        window.location.href = `/sign-in?redirect_url=${encodeURIComponent("/cart")}`;
+        return;
+      }
+
+      const data = (await res.json()) as {
+        authorizationUrl?: string;
+        error?: string;
+      };
+
+      if (!res.ok || !data.authorizationUrl) {
+        setPayError(data.error || "Unable to start checkout. Please try again.");
+        return;
+      }
+
+      // Redirect to Paystack hosted checkout
+      window.location.href = data.authorizationUrl;
+    } catch {
+      setPayError("Network error. Please try again.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-white">
@@ -131,6 +177,12 @@ export default function CartPage() {
                 </span>
               </div>
 
+              {payError ? (
+                <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {payError}
+                </div>
+              ) : null}
+
               <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <Link
                   href="/products"
@@ -139,12 +191,14 @@ export default function CartPage() {
                   Continue shopping
                 </Link>
 
-                <Link
-                  href="/checkout"
-                  className="inline-flex justify-center rounded-xl bg-[#04209d] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+                <button
+                  type="button"
+                  onClick={onPayWithPaystack}
+                  disabled={paying}
+                  className="inline-flex justify-center rounded-xl bg-[#04209d] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Checkout
-                </Link>
+                  {paying ? "Redirecting…" : "Pay with Paystack"}
+                </button>
               </div>
             </div>
           </div>

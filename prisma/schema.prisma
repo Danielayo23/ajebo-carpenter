@@ -77,6 +77,8 @@ model Order {
   createdAt      DateTime       @default(now())
   deliveredAt    DateTime?
   deliveryStatus DeliveryStatus @default(PROCESSING)
+  checkoutKey    String?        @unique
+  checkoutStatus CheckoutStatus @default(INITIATED)
   user           User           @relation(fields: [userId], references: [id])
   payment        Payment?
   orderItems     OrderItem[]
@@ -101,13 +103,14 @@ model OrderItem {
 
 model Payment {
   id              Int       @id @default(autoincrement())
-  orderId         Int       @unique(map: "Payment_orderId_fkey")
+  orderId         Int       @unique
   provider        String
-  reference       String    @unique(map: "Payment_reference_fkey")
+  reference       String    @unique
   status          String
-  createdAt       DateTime? @default(now())
+  createdAt       DateTime  @default(now())
   paystackPayload Json?     @map("paystack_payload")
-  paystackRef     String?   @map("paystack_ref")
+  paystackRef     String?   @unique@map("paystack_ref")
+  paidAt          DateTime?
   order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("Payment")
@@ -138,4 +141,10 @@ enum DeliveryStatus {
   PROCESSING
   DISPATCHED
   DELIVERED
+}
+
+enum CheckoutStatus {
+  INITIATED
+  SUCCESS
+  FAILED
 }

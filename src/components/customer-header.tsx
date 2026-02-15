@@ -19,8 +19,8 @@ export default function CustomerHeader() {
     <header className="border-b bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <Image
+        <Link href="/" className="flex items-center gap-2" >
+        <Image
           src="/AJEBO LOGO jpg_1.jpg"
           alt="Ajebo Carpenter Logo"
           width={120}
@@ -28,7 +28,6 @@ export default function CustomerHeader() {
           priority
           />
         </Link>
-
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
           {links.map((link) => (
