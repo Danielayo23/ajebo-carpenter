@@ -31,10 +31,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { clerkUserId: userId } });
+  // Load user + address
+  const user = await prisma.user.findUnique({
+    where: { clerkUserId: userId },
+    include: { address: true },
+  });
+
   if (!user) return json({ error: "User not found" }, { status: 404 });
 
-  // ✅ Extract non-null values so TS stops complaining later
+  if (!user.address) {
+    return json(
+      { error: "Missing delivery address. Please add an address before checkout." },
+      { status: 400 }
+    );
+  }
+
   const userEmail = user.email;
   const userDbId = user.id;
 
@@ -63,7 +74,7 @@ export async function POST(req: Request) {
     totalAmount += it.product.price * it.quantity;
   }
 
-  // ✅ Idempotent: reuse same order/payment if checkoutKey already exists
+  // Idempotent order by checkoutKey
   let order = await prisma.order.findUnique({
     where: { checkoutKey },
     include: { payment: true },
@@ -72,13 +83,23 @@ export async function POST(req: Request) {
   if (!order) {
     order = await prisma.order.create({
       data: {
-        reference: randomUUID(), // internal order reference
+        reference: randomUUID(),
         userId: userDbId,
         status: "PENDING",
         deliveryStatus: "PROCESSING",
         totalAmount,
         checkoutKey,
         checkoutStatus: "INITIATED",
+
+        // ✅ snapshot address onto order
+        shipFullName: user.address.fullName,
+        shipPhone: user.address.phone,
+        shipLine1: user.address.line1,
+        shipLine2: user.address.line2,
+        shipLandmark: user.address.landmark,
+        shipCity: user.address.city,
+        shipState: user.address.state,
+
         orderItems: {
           create: cart.items.map((it) => ({
             productId: it.productId,
@@ -91,14 +112,16 @@ export async function POST(req: Request) {
     });
   } else {
     if (order.status === "PAID") {
-      return json({ error: "Order already paid", reference: order.reference }, { status: 409 });
+      return json(
+        { error: "Order already paid", reference: order.reference },
+        { status: 409 }
+      );
     }
     if (order.userId !== userDbId) {
       return json({ error: "checkoutKey belongs to another user" }, { status: 403 });
     }
   }
 
-  // ✅ From here, order is guaranteed non-null
   const orderId = order.id;
   const orderTotal = order.totalAmount;
 
@@ -109,14 +132,14 @@ export async function POST(req: Request) {
       data: {
         orderId,
         provider: "PAYSTACK",
-        reference: order.reference, // internal reference
+        reference: order.reference,
         status: "INITIATED",
-        paystackRef: randomUUID(), // paystack transaction reference
+        paystackRef: randomUUID(),
       },
     });
   }
 
-  // ✅ If already initialized, reuse authorization URL (prevents duplicate reference errors)
+  // Reuse existing authorization_url if we have it
   const existingAuthUrl =
     (payment.paystackPayload as any)?.data?.authorization_url ||
     (payment.paystackPayload as any)?.data?.authorizationUrl;
@@ -124,7 +147,7 @@ export async function POST(req: Request) {
   if (existingAuthUrl) {
     return json({
       authorizationUrl: existingAuthUrl,
-      reference: payment.paystackRef, // paystack reference
+      reference: payment.paystackRef,
     });
   }
 
@@ -146,14 +169,22 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         email: userEmail,
-        amount: orderTotal, // kobo
+        amount: orderTotal,
         reference: ref,
-        callback_url: `${appUrl}/checkout/verify?reference=${encodeURIComponent(paystackRef)}`,
+        callback_url: `${appUrl}/checkout/verify?reference=${encodeURIComponent(ref)}`,
         metadata: {
           orderId,
           userId: userDbId,
           checkoutKey,
           paystackRef: ref,
+
+          // Nice display in Paystack dashboard
+          custom_fields: [
+            { display_name: "Order ID", variable_name: "order_id", value: String(orderId) },
+            { display_name: "Order Ref", variable_name: "order_ref", value: order.reference },
+            { display_name: "Customer Email", variable_name: "customer_email", value: userEmail },
+            { display_name: "Delivery Address", variable_name: "delivery_address", value: `${order.shipLine1 ?? ""}${order.shipCity ? `, ${order.shipCity}` : ""}${order.shipState ? `, ${order.shipState}` : ""}` },
+          ],
         },
       }),
     });
@@ -164,7 +195,7 @@ export async function POST(req: Request) {
   // First attempt
   let init = await initPaystack(paystackRef);
 
-  // ✅ Paystack duplicate ref error is usually top-level `code`, not `data.code`
+  // Retry once if duplicate reference
   if (!init?.status && init?.code === "duplicate_reference") {
     paystackRef = randomUUID();
     init = await initPaystack(paystackRef);
@@ -181,7 +212,6 @@ export async function POST(req: Request) {
     return json({ error: "Paystack init failed", init }, { status: 500 });
   }
 
-  // store payload + final paystackRef used
   await prisma.payment
     .update({
       where: { orderId },
