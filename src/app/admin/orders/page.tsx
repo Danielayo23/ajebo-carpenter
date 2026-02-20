@@ -12,6 +12,7 @@ import { DeliveryPill, PaymentPill } from "./_components/OrderStatusPill";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Download, Filter as FilterIcon } from "lucide-react";
+import Link from "next/link";
 
 type Tab = "summary" | "list";
 type Filter = "all" | "shipping" | "completed" | "cancelled";
@@ -191,7 +192,6 @@ export default async function AdminOrdersPage({
       listWhere.OR = [
         { reference: { contains: q } },
         { user: { email: { contains: q } } },
-        // ✅ FIX: Order relation is orderItems (not items / orderitem)
         { orderItems: { some: { product: { name: { contains: q } } } } },
       ];
     }
@@ -384,26 +384,16 @@ export default async function AdminOrdersPage({
                 <table className="w-full table-fixed text-sm">
                   <thead>
                     <tr className="text-left text-xs font-semibold text-gray-600">
-                      {/* Hide checkbox on very small screens */}
                       <th className="w-10 py-3 pl-3 pr-3 hidden sm:table-cell">
                         <input type="checkbox" aria-label="Select all" />
                       </th>
 
                       <th className="py-3 pl-3 pr-3 w-[42%] sm:w-[34%]">Orders</th>
-
-                      {/* Hide Customer column on mobile (we show it inside Orders instead) */}
                       <th className="py-3 pr-3 w-[22%] hidden md:table-cell">Customer</th>
-
                       <th className="py-3 pr-3 w-[14%]">Price</th>
-
-                      {/* Hide Date on mobile */}
                       <th className="py-3 pr-3 w-[12%] hidden lg:table-cell">Date</th>
-
-                      {/* Hide Payment on mobile */}
                       <th className="py-3 pr-3 w-[10%] hidden lg:table-cell">Payment</th>
-
                       <th className="py-3 pr-3 w-[12%]">Status</th>
-
                       <th className="py-3 pr-3 w-[120px] text-right">Action</th>
                     </tr>
                   </thead>
@@ -424,22 +414,23 @@ export default async function AdminOrdersPage({
 
                         return (
                           <tr key={o.id} className="border-b last:border-b-0">
-                            {/* checkbox hidden on xs */}
                             <td className="py-3 pl-3 pr-3 hidden sm:table-cell align-top">
                               <input type="checkbox" aria-label={`Select order ${o.id}`} />
                             </td>
 
-                            {/* Orders column (compact + contains mobile-only info) */}
+                            {/* ✅ UPDATED Orders column (clickable) */}
                             <td className="py-3 pl-3 pr-3 align-top">
                               <div className="min-w-0">
-                                <div className="font-medium text-[#04209d] truncate">#{o.id}</div>
+                                <Link
+                                  href={`/admin/orders/${o.id}`}
+                                  className="font-medium text-[#04209d] hover:underline truncate inline-block"
+                                >
+                                  #{o.id}
+                                </Link>
 
                                 <div className="text-xs text-gray-500 truncate">{productName}</div>
-
-                                {/* Reference can be long: truncate */}
                                 <div className="text-[11px] text-gray-400 truncate">{o.reference}</div>
 
-                                {/* Mobile-only: show customer + date + payment inside Orders */}
                                 <div className="mt-1 space-y-1 md:hidden">
                                   <div className="text-xs text-gray-700 truncate">{o.user.email}</div>
                                   <div className="flex items-center gap-2 text-[11px] text-gray-500">
@@ -451,32 +442,26 @@ export default async function AdminOrdersPage({
                               </div>
                             </td>
 
-                            {/* Customer (hidden on mobile) */}
                             <td className="py-3 pr-3 text-gray-800 hidden md:table-cell align-top">
                               <div className="truncate">{o.user.email}</div>
                             </td>
 
-                            {/* Price */}
                             <td className="py-3 pr-3 text-gray-800 align-top whitespace-nowrap">
                               {formatNgnFromKobo(o.totalAmount)}
                             </td>
 
-                            {/* Date (hidden on mobile) */}
                             <td className="py-3 pr-3 text-gray-600 hidden lg:table-cell align-top whitespace-nowrap">
                               {formatDate(o.createdAt)}
                             </td>
 
-                            {/* Payment (hidden on mobile) */}
                             <td className="py-3 pr-3 hidden lg:table-cell align-top">
                               <PaymentPill value={paymentLabel} />
                             </td>
 
-                            {/* Status */}
                             <td className="py-3 pr-3 align-top">
                               <DeliveryPill value={ds} />
                             </td>
 
-                            {/* Action */}
                             <td className="py-3 pr-3 text-right align-top">
                               <OrderStatusActions
                                 orderId={o.id}
@@ -493,7 +478,6 @@ export default async function AdminOrdersPage({
                 </table>
               </div>
 
-
               <div className="mt-5 flex items-center justify-between text-xs text-gray-500">
                 <div>
                   Page <span className="font-semibold text-gray-800">{page}</span> of{" "}
@@ -505,9 +489,7 @@ export default async function AdminOrdersPage({
                     className={`rounded-xl bg-white px-3 py-2 shadow-sm transition ${
                       page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
                     }`}
-                    href={`/admin/orders?tab=list&filter=${filter}${
-                      q ? `&q=${encodeURIComponent(q)}` : ""
-                    }&page=${page - 1}`}
+                    href={`/admin/orders?tab=list&filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${page - 1}`}
                   >
                     Prev
                   </a>
@@ -516,9 +498,7 @@ export default async function AdminOrdersPage({
                     className={`rounded-xl bg-white px-3 py-2 shadow-sm transition ${
                       page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
                     }`}
-                    href={`/admin/orders?tab=list&filter=${filter}${
-                      q ? `&q=${encodeURIComponent(q)}` : ""
-                    }&page=${page + 1}`}
+                    href={`/admin/orders?tab=list&filter=${filter}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${page + 1}`}
                   >
                     Next
                   </a>
