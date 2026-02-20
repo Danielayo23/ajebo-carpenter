@@ -40,7 +40,6 @@ const NIGERIAN_STATES = [
   "Edo",
   "Ekiti",
   "Enugu",
-  "FCT - Abuja",
   "Gombe",
   "Imo",
   "Jigawa",
@@ -63,6 +62,7 @@ const NIGERIAN_STATES = [
   "Taraba",
   "Yobe",
   "Zamfara",
+  "FCT - Abuja",
 ];
 
 function Spinner() {
