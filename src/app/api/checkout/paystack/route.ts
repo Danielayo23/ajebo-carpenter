@@ -31,22 +31,27 @@ export async function POST(req: Request) {
     );
   }
 
-  // ✅ Load user + saved address
+  // Load user + saved address
   const user = await prisma.user.findUnique({
     where: { clerkUserId: userId },
     include: { address: true },
   });
-
   if (!user) return json({ error: "User not found" }, { status: 404 });
 
   const userEmail = user.email;
   const userDbId = user.id;
 
-  // ✅ Enforce address exists
-  const ship = user.address;
-  if (!ship) {
-    return json({ error: "Please add a delivery address before checkout." }, { status: 400 });
+  // Enforce address exists before checkout
+  if (!user.address) {
+    return json(
+      { error: "Delivery address required. Please add your address before payment." },
+      { status: 409 }
+    );
   }
+
+  // Narrowed (non-null) shipping
+  const ship = user.address;
+
   if (!ship.fullName || !ship.phone || !ship.line1 || !ship.city || !ship.state) {
     return json(
       { error: "Your saved address is incomplete. Please edit and save it again." },
@@ -67,10 +72,11 @@ export async function POST(req: Request) {
   // Validate + total
   let totalAmount = 0;
 
-  const itemSummary = cart.items.map((it) => ({
+  const itemsForMeta = cart.items.map((it) => ({
     name: it.product.name,
-    qty: it.quantity,
-    price: it.product.price,
+    quantity: it.quantity,
+    unit_price_kobo: it.product.price,
+    line_total_kobo: it.product.price * it.quantity,
   }));
 
   for (const it of cart.items) {
@@ -80,13 +86,12 @@ export async function POST(req: Request) {
     totalAmount += it.product.price * it.quantity;
   }
 
-  // ✅ Get existing order (idempotent)
+  // Idempotent: reuse same order/payment if checkoutKey exists
   const existing = await prisma.order.findUnique({
     where: { checkoutKey },
     include: { payment: true },
   });
 
-  // If exists, validate it
   if (existing) {
     if (existing.status === "PAID") {
       return json({ error: "Order already paid", reference: existing.reference }, { status: 409 });
@@ -96,7 +101,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // ✅ Create order only if missing
+  // ✅ IMPORTANT: make it a CONST so TS knows it can’t “become null” inside initPaystack()
   const order =
     existing ??
     (await prisma.order.create({
@@ -109,7 +114,7 @@ export async function POST(req: Request) {
         checkoutKey,
         checkoutStatus: "INITIATED",
 
-        // Snapshot shipping into order (must exist in schema)
+        // Snapshot shipping into the order (must exist in schema)
         shipFullName: ship.fullName,
         shipPhone: ship.phone,
         shipLine1: ship.line1,
@@ -129,9 +134,10 @@ export async function POST(req: Request) {
       include: { payment: true },
     }));
 
-  // ✅ Now TS knows order is NON-NULL
   const orderId = order.id;
   const orderTotal = order.totalAmount;
+
+  // ✅ Store reference in a const and use that inside initPaystack (fixes your build error)
   const orderInternalRef = order.reference;
 
   // Ensure payment exists
@@ -148,25 +154,19 @@ export async function POST(req: Request) {
     });
   }
 
-  // If already initialized, reuse auth url
+  // Reuse auth url if already initialized
   const existingAuthUrl =
     (payment.paystackPayload as any)?.data?.authorization_url ||
     (payment.paystackPayload as any)?.data?.authorizationUrl;
 
   if (existingAuthUrl) {
-    return json({
-      authorizationUrl: existingAuthUrl,
-      reference: payment.paystackRef,
-    });
+    return json({ authorizationUrl: existingAuthUrl, reference: payment.paystackRef });
   }
 
   // Ensure paystackRef exists
   let paystackRef = payment.paystackRef ?? randomUUID();
   if (!payment.paystackRef) {
-    await prisma.payment.update({
-      where: { orderId },
-      data: { paystackRef },
-    });
+    await prisma.payment.update({ where: { orderId }, data: { paystackRef } });
   }
 
   async function initPaystack(ref: string) {
@@ -178,16 +178,26 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         email: userEmail,
-        amount: orderTotal,
+        amount: orderTotal, // kobo
         reference: ref,
         callback_url: `${appUrl}/checkout/verify?reference=${encodeURIComponent(ref)}`,
-
         metadata: {
           orderId,
-          internalRef: orderInternalRef,
           checkoutKey,
           paystackRef: ref,
           customerEmail: userEmail,
+
+          // These show on Paystack dashboard (and sometimes in notifications)
+          custom_fields: [
+            { display_name: "Order ID", variable_name: "order_id", value: String(orderId) },
+            { display_name: "Internal Ref", variable_name: "internal_ref", value: orderInternalRef },
+            { display_name: "Ship Name", variable_name: "ship_name", value: ship.fullName },
+            { display_name: "Ship Phone", variable_name: "ship_phone", value: ship.phone },
+            { display_name: "Ship Address", variable_name: "ship_address", value: ship.line1 },
+            { display_name: "City", variable_name: "ship_city", value: ship.city },
+            { display_name: "State", variable_name: "ship_state", value: ship.state },
+          ],
+
           shipping: {
             fullName: ship.fullName,
             phone: ship.phone,
@@ -197,19 +207,9 @@ export async function POST(req: Request) {
             city: ship.city,
             state: ship.state,
           },
-          items: itemSummary.map((x) => ({ name: x.name, qty: x.qty })),
-        },
 
-        custom_fields: [
-          { display_name: "Order ID", variable_name: "order_id", value: String(orderId) },
-          // ✅ IMPORTANT: DO NOT USE order.reference here
-          { display_name: "Internal Ref", variable_name: "internal_ref", value: orderInternalRef },
-          { display_name: "Ship Name", variable_name: "ship_name", value: ship.fullName },
-          { display_name: "Ship Phone", variable_name: "ship_phone", value: ship.phone },
-          { display_name: "Ship Address", variable_name: "ship_address", value: ship.line1 },
-          { display_name: "Ship City", variable_name: "ship_city", value: ship.city },
-          { display_name: "Ship State", variable_name: "ship_state", value: ship.state },
-        ],
+          items: itemsForMeta,
+        },
       }),
     });
 
@@ -226,21 +226,14 @@ export async function POST(req: Request) {
   }
 
   if (!init?.status || !init?.data?.authorization_url) {
-    await prisma.order
-      .update({ where: { id: orderId }, data: { checkoutStatus: "FAILED" } })
-      .catch(() => {});
+    await prisma.order.update({ where: { id: orderId }, data: { checkoutStatus: "FAILED" } }).catch(() => {});
     return json({ error: "Paystack init failed", init }, { status: 500 });
   }
 
-  await prisma.payment
-    .update({
-      where: { orderId },
-      data: { paystackPayload: init, paystackRef },
-    })
-    .catch(() => {});
+  await prisma.payment.update({
+    where: { orderId },
+    data: { paystackPayload: init, paystackRef },
+  }).catch(() => {});
 
-  return json({
-    authorizationUrl: init.data.authorization_url,
-    reference: paystackRef,
-  });
+  return json({ authorizationUrl: init.data.authorization_url, reference: paystackRef });
 }
