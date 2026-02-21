@@ -69,7 +69,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Basic phone sanity (keeps it flexible)
   if (phone.length < 7) {
     return json({ ok: false, error: "Phone number looks too short." }, { status: 400 });
   }
