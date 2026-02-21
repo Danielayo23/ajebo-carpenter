@@ -458,18 +458,20 @@ export default async function AdminOrdersPage({
                               <PaymentPill value={paymentLabel} />
                             </td>
 
-                            <td className="py-3 pr-3 align-top">
-                              <DeliveryPill value={ds} />
-                            </td>
+                            <td className="py-3 pr-3 align-top overflow-hidden whitespace-nowrap max-w-full">
+  <div className="min-w-0">
+    <DeliveryPill value={ds} />
+  </div>
+</td>
 
-                            <td className="py-3 pr-3 text-right align-top">
-                              <OrderStatusActions
-                                orderId={o.id}
-                                deliveryStatus={ds}
-                                canEdit={!disabled}
-                                action={updateDeliveryStatus}
-                              />
-                            </td>
+<td className="py-3 pr-3 text-right align-top relative z-10">
+  <OrderStatusActions
+    orderId={o.id}
+    deliveryStatus={ds}
+    canEdit={!disabled}
+    action={updateDeliveryStatus}
+  />
+</td>
                           </tr>
                         );
                       })
