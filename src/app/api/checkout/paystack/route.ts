@@ -1,5 +1,3 @@
-// src/app/api/checkout/paystack/route.ts
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -44,24 +42,19 @@ export async function POST(req: Request) {
   const userEmail = user.email;
   const userDbId = user.id;
 
-  // ✅ Enforce address exists before checkout
-  const a = user.address;
-  if (!a) {
-    return json(
-      { error: "Please add a delivery address before checkout." },
-      { status: 400 }
-    );
+  // ✅ Enforce address exists
+  const ship = user.address;
+  if (!ship) {
+    return json({ error: "Please add a delivery address before checkout." }, { status: 400 });
   }
-
-  // Basic sanity: required fields must exist
-  if (!a.fullName || !a.phone || !a.line1 || !a.city || !a.state) {
+  if (!ship.fullName || !ship.phone || !ship.line1 || !ship.city || !ship.state) {
     return json(
       { error: "Your saved address is incomplete. Please edit and save it again." },
       { status: 400 }
     );
   }
 
-  // Load cart + items
+  // Load cart
   const cart = await prisma.cart.findUnique({
     where: { userId: userDbId },
     include: { items: { include: { product: true } } },
@@ -73,6 +66,7 @@ export async function POST(req: Request) {
 
   // Validate + total
   let totalAmount = 0;
+
   const itemSummary = cart.items.map((it) => ({
     name: it.product.name,
     qty: it.quantity,
@@ -80,26 +74,32 @@ export async function POST(req: Request) {
   }));
 
   for (const it of cart.items) {
-    if (!it.product.active) {
-      return json({ error: "Inactive product in cart" }, { status: 400 });
-    }
-    if (it.product.stock <= 0) {
-      return json({ error: `Out of stock: ${it.product.name}` }, { status: 409 });
-    }
-    if (it.quantity > it.product.stock) {
-      return json({ error: `Insufficient stock: ${it.product.name}` }, { status: 409 });
-    }
+    if (!it.product.active) return json({ error: "Inactive product in cart" }, { status: 400 });
+    if (it.product.stock <= 0) return json({ error: `Out of stock: ${it.product.name}` }, { status: 409 });
+    if (it.quantity > it.product.stock) return json({ error: `Insufficient stock: ${it.product.name}` }, { status: 409 });
     totalAmount += it.product.price * it.quantity;
   }
 
-  // ✅ Idempotent: reuse same order/payment if checkoutKey already exists
-  let order = await prisma.order.findUnique({
+  // ✅ Get existing order (idempotent)
+  const existing = await prisma.order.findUnique({
     where: { checkoutKey },
     include: { payment: true },
   });
 
-  if (!order) {
-    order = await prisma.order.create({
+  // If exists, validate it
+  if (existing) {
+    if (existing.status === "PAID") {
+      return json({ error: "Order already paid", reference: existing.reference }, { status: 409 });
+    }
+    if (existing.userId !== userDbId) {
+      return json({ error: "checkoutKey belongs to another user" }, { status: 403 });
+    }
+  }
+
+  // ✅ Create order only if missing
+  const order =
+    existing ??
+    (await prisma.order.create({
       data: {
         reference: randomUUID(),
         userId: userDbId,
@@ -109,14 +109,14 @@ export async function POST(req: Request) {
         checkoutKey,
         checkoutStatus: "INITIATED",
 
-        // ✅ Snapshot shipping into order (requires these fields on Order model)
-        shipFullName: a.fullName,
-        shipPhone: a.phone,
-        shipLine1: a.line1,
-        shipLine2: a.line2,
-        shipLandmark: a.landmark,
-        shipCity: a.city,
-        shipState: a.state,
+        // Snapshot shipping into order (must exist in schema)
+        shipFullName: ship.fullName,
+        shipPhone: ship.phone,
+        shipLine1: ship.line1,
+        shipLine2: ship.line2,
+        shipLandmark: ship.landmark,
+        shipCity: ship.city,
+        shipState: ship.state,
 
         orderItems: {
           create: cart.items.map((it) => ({
@@ -127,20 +127,12 @@ export async function POST(req: Request) {
         },
       },
       include: { payment: true },
-    });
-  } else {
-    if (order.status === "PAID") {
-      return json({ error: "Order already paid", reference: order.reference }, { status: 409 });
-    }
-    if (order.userId !== userDbId) {
-      return json({ error: "checkoutKey belongs to another user" }, { status: 403 });
-    }
-  }
+    }));
 
-  // ✅ Fix TS: from here, capture non-null values once
+  // ✅ Now TS knows order is NON-NULL
   const orderId = order.id;
   const orderTotal = order.totalAmount;
-  const orderInternalRef = order.reference; // ✅ prevents “order possibly null” later
+  const orderInternalRef = order.reference;
 
   // Ensure payment exists
   let payment = order.payment;
@@ -156,7 +148,7 @@ export async function POST(req: Request) {
     });
   }
 
-  // If already initialized, reuse authorization URL
+  // If already initialized, reuse auth url
   const existingAuthUrl =
     (payment.paystackPayload as any)?.data?.authorization_url ||
     (payment.paystackPayload as any)?.data?.authorizationUrl;
@@ -186,47 +178,37 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         email: userEmail,
-        amount: orderTotal, // kobo
+        amount: orderTotal,
         reference: ref,
-
-        // ✅ always use the ref argument
         callback_url: `${appUrl}/checkout/verify?reference=${encodeURIComponent(ref)}`,
 
-        // ✅ Details for Paystack dashboard/receipt
         metadata: {
           orderId,
-          internalRef: orderInternalRef, // ✅ include internal order ref
+          internalRef: orderInternalRef,
           checkoutKey,
           paystackRef: ref,
           customerEmail: userEmail,
           shipping: {
-            fullName: a.fullName,
-            phone: a.phone,
-            line1: a.line1,
-            line2: a.line2,
-            landmark: a.landmark,
-            city: a.city,
-            state: a.state,
+            fullName: ship.fullName,
+            phone: ship.phone,
+            line1: ship.line1,
+            line2: ship.line2,
+            landmark: ship.landmark,
+            city: ship.city,
+            state: ship.state,
           },
           items: itemSummary.map((x) => ({ name: x.name, qty: x.qty })),
         },
 
-        // Custom fields may show in receipts/dashboards
         custom_fields: [
           { display_name: "Order ID", variable_name: "order_id", value: String(orderId) },
+          // ✅ IMPORTANT: DO NOT USE order.reference here
           { display_name: "Internal Ref", variable_name: "internal_ref", value: orderInternalRef },
-          { display_name: "Customer", variable_name: "customer", value: a.fullName },
-          { display_name: "Phone", variable_name: "phone", value: a.phone },
-          {
-            display_name: "Address",
-            variable_name: "address",
-            value: `${a.line1}${a.line2 ? ", " + a.line2 : ""}`,
-          },
-          {
-            display_name: "City/State",
-            variable_name: "city_state",
-            value: `${a.city}, ${a.state}`,
-          },
+          { display_name: "Ship Name", variable_name: "ship_name", value: ship.fullName },
+          { display_name: "Ship Phone", variable_name: "ship_phone", value: ship.phone },
+          { display_name: "Ship Address", variable_name: "ship_address", value: ship.line1 },
+          { display_name: "Ship City", variable_name: "ship_city", value: ship.city },
+          { display_name: "Ship State", variable_name: "ship_state", value: ship.state },
         ],
       }),
     });
@@ -245,10 +227,7 @@ export async function POST(req: Request) {
 
   if (!init?.status || !init?.data?.authorization_url) {
     await prisma.order
-      .update({
-        where: { id: orderId },
-        data: { checkoutStatus: "FAILED" },
-      })
+      .update({ where: { id: orderId }, data: { checkoutStatus: "FAILED" } })
       .catch(() => {});
     return json({ error: "Paystack init failed", init }, { status: 500 });
   }
