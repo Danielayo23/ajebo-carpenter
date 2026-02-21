@@ -1,3 +1,5 @@
+// src/app/api/checkout/paystack/route.ts
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -107,7 +109,7 @@ export async function POST(req: Request) {
         checkoutKey,
         checkoutStatus: "INITIATED",
 
-        // ✅ Snapshot shipping into order
+        // ✅ Snapshot shipping into order (requires these fields on Order model)
         shipFullName: a.fullName,
         shipPhone: a.phone,
         shipLine1: a.line1,
@@ -135,8 +137,10 @@ export async function POST(req: Request) {
     }
   }
 
+  // ✅ Fix TS: from here, capture non-null values once
   const orderId = order.id;
   const orderTotal = order.totalAmount;
+  const orderInternalRef = order.reference; // ✅ prevents “order possibly null” later
 
   // Ensure payment exists
   let payment = order.payment;
@@ -145,7 +149,7 @@ export async function POST(req: Request) {
       data: {
         orderId,
         provider: "PAYSTACK",
-        reference: order.reference,
+        reference: orderInternalRef,
         status: "INITIATED",
         paystackRef: randomUUID(),
       },
@@ -185,12 +189,13 @@ export async function POST(req: Request) {
         amount: orderTotal, // kobo
         reference: ref,
 
-        // ✅ FIX: always use the ref argument
+        // ✅ always use the ref argument
         callback_url: `${appUrl}/checkout/verify?reference=${encodeURIComponent(ref)}`,
 
         // ✅ Details for Paystack dashboard/receipt
         metadata: {
           orderId,
+          internalRef: orderInternalRef, // ✅ include internal order ref
           checkoutKey,
           paystackRef: ref,
           customerEmail: userEmail,
@@ -206,9 +211,10 @@ export async function POST(req: Request) {
           items: itemSummary.map((x) => ({ name: x.name, qty: x.qty })),
         },
 
-        // Custom fields often show in receipts/dashboards
+        // Custom fields may show in receipts/dashboards
         custom_fields: [
           { display_name: "Order ID", variable_name: "order_id", value: String(orderId) },
+          { display_name: "Internal Ref", variable_name: "internal_ref", value: orderInternalRef },
           { display_name: "Customer", variable_name: "customer", value: a.fullName },
           { display_name: "Phone", variable_name: "phone", value: a.phone },
           {
