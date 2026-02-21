@@ -62,7 +62,7 @@ const NIGERIAN_STATES = [
   "Taraba",
   "Yobe",
   "Zamfara",
-  "FCT - Abuja",
+  "FCT  - Abuja",
 ];
 
 function Spinner() {
