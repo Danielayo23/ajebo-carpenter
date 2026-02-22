@@ -17,7 +17,7 @@ function formatNgnFromKobo(kobo: number) {
 export default async function ProductsPage() {
   const [products, totalProducts, activeProducts] = await Promise.all([
     prisma.product.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ active: "desc" }, { createdAt: "desc" }], // ✅ Active first, then newest
       include: { category: true },
     }),
     prisma.product.count(),
@@ -26,7 +26,7 @@ export default async function ProductsPage() {
 
   const outOfStock = products.filter((p) => p.stock === 0).length;
 
-  async function archiveProduct(formData: FormData) {
+  async function toggleProductActive(formData: FormData) {
     "use server";
 
     await requireAdmin();
@@ -34,13 +34,18 @@ export default async function ProductsPage() {
     const id = Number(formData.get("id"));
     if (!Number.isFinite(id)) return;
 
-    // ✅ Soft-delete (archive) instead of hard delete
-    await prisma.product.update({
+    const product = await prisma.product.findUnique({
       where: { id },
-      data: { active: false },
+      select: { active: true },
     });
 
-    // ✅ Refresh list + go back cleanly
+    if (!product) return;
+
+    await prisma.product.update({
+      where: { id },
+      data: { active: !product.active }, // ✅ toggle
+    });
+
     revalidatePath("/admin/products");
     redirect("/admin/products");
   }
@@ -115,7 +120,12 @@ export default async function ProductsPage() {
                   </tr>
                 ) : (
                   products.map((product) => (
-                    <tr key={product.id} className="transition-colors hover:bg-gray-50">
+                    <tr
+                      key={product.id}
+                      className={`transition-colors hover:bg-gray-50 ${
+                        product.active ? "" : "opacity-70"
+                      }`}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
@@ -176,7 +186,11 @@ export default async function ProductsPage() {
 
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end">
-                          <ProductsRowActions productId={product.id} onDelete={archiveProduct} />
+                          <ProductsRowActions
+                            productId={product.id}
+                            active={product.active}
+                            onToggleActive={toggleProductActive}
+                          />
                         </div>
                       </td>
                     </tr>
