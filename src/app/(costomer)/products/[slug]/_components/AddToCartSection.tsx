@@ -116,7 +116,7 @@ export default function AddToCartSection({
 
       {stock > 0 && stock < 5 && (
         <div className="rounded-xl bg-yellow-50 px-4 py-2.5 text-sm text-yellow-800">
-          <span className="font-semibold">⚠️ Limited stock </span>-only {stock} left. Order now!
+          <span className="font-semibold">⚠️ Limited stock </span> — Only {stock} left. Order now!
         </div>
       )}
 
