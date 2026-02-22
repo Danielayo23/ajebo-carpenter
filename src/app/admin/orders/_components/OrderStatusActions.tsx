@@ -29,7 +29,7 @@ export default function OrderStatusActions({
     value={next}
     onChange={(e) => setNext(e.target.value as DeliveryStatus)}
     disabled={!canEdit}
-    className="min-w-[140px] rounded-md border px-2 py-1 text-xs disabled:opacity-60"
+    className="min-w-[100px] rounded-md border px-2 py-1 text-xs disabled:opacity-60"
   >
     <option value="PROCESSING">Processing</option>
     <option value="DISPATCHED">Shipped</option>
