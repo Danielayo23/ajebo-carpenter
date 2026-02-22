@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { UserButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { ShoppingCart, User, Menu, X } from 'lucide-react';
-import Image from "next/image";
+import Image from 'next/image';
 
 export default function CustomerHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -15,48 +15,76 @@ export default function CustomerHeader() {
     { label: 'Contact', href: '/contact' },
   ];
 
+  // Prevent menu staying open after resizing (mobile -> desktop)
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 768) setMenuOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   return (
-    <header className="border-b bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2" >
-        <Image
-          src="/AJEBO LOGO jpg_1.jpg"
-          alt="Ajebo Carpenter Logo"
-          width={120}
-          height={20}
-          priority
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/AJEBO LOGO jpg_1.jpg"
+            alt="Ajebo Carpenter Logo"
+            width={120}
+            height={20}
+            priority
+            className="h-auto w-[110px] sm:w-[120px]"
           />
         </Link>
+
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
+        <nav className="hidden items-center gap-8 text-sm font-semibold text-gray-900 md:flex">
           {links.map((link) => (
-            <Link key={link.href} href={link.href}>
+            <Link
+              key={link.href}
+              href={link.href}
+              className="hover:text-[#04209d] transition-colors"
+            >
               {link.label}
             </Link>
           ))}
         </nav>
 
         {/* Right icons */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 text-gray-900">
           <SignedOut>
-            <Link href="/sign-in">
+            <Link
+              href="/sign-in"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-50"
+              aria-label="Sign in"
+            >
               <User className="h-5 w-5" />
             </Link>
           </SignedOut>
 
           <SignedIn>
-            <UserButton afterSignOutUrl="/" />
+            <div className="inline-flex items-center justify-center">
+              <UserButton afterSignOutUrl="/" />
+            </div>
           </SignedIn>
 
-          <Link href="/cart">
+          <Link
+            href="/cart"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-50"
+            aria-label="Cart"
+          >
             <ShoppingCart className="h-5 w-5" />
           </Link>
 
           {/* Hamburger for mobile */}
           <button
-            className="md:hidden p-2"
-            onClick={() => setMenuOpen(!menuOpen)}
+            type="button"
+            className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-50"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -65,17 +93,19 @@ export default function CustomerHeader() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden bg-white border-t">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="block px-6 py-3 border-b"
-              onClick={() => setMenuOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <div className="md:hidden border-t border-gray-200 bg-white">
+          <nav className="px-4 py-2">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="block rounded-xl px-3 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       )}
     </header>
