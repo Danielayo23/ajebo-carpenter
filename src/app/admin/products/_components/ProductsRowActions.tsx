@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, ArchiveRestore, Archive } from "lucide-react";
 
 export default function ProductsRowActions({
   productId,
-  onDelete,
+  active,
+  onToggleActive,
 }: {
   productId: number;
-  onDelete: (formData: FormData) => void;
+  active: boolean;
+  onToggleActive: (formData: FormData) => void;
 }) {
+  const label = active ? "Archive" : "Reactivate";
+
   return (
     <div className="flex items-center gap-2">
       <Link
@@ -20,17 +24,22 @@ export default function ProductsRowActions({
         <Edit2 size={16} />
       </Link>
 
-      <form action={onDelete}>
+      <form action={onToggleActive}>
         <input type="hidden" name="id" value={productId} />
         <button
           type="submit"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-red-600 shadow-sm transition-colors hover:bg-red-50"
-          title="Delete"
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm transition-colors ${
+            active ? "text-red-600 hover:bg-red-50" : "text-green-700 hover:bg-green-50"
+          }`}
+          title={label}
           onClick={(e) => {
-            if (!confirm("Delete this product?")) e.preventDefault();
+            const msg = active
+              ? "Archive this product? (It will be hidden from customers)"
+              : "Reactivate this product? (It will show to customers again)";
+            if (!confirm(msg)) e.preventDefault();
           }}
         >
-          <Trash2 size={16} />
+          {active ? <Archive size={16} /> : <ArchiveRestore size={16} />}
         </button>
       </form>
     </div>
