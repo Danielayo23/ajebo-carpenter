@@ -13,7 +13,7 @@ export default function Page() {
             <div className="mx-auto w-full max-w-[520px]">
               {/* Title block (match your Figma style) */}
               <div className="text-center">
-                <h1 className="text-2xl font-bold text-[#04209d] sm:text-3xl">
+                <h1 className="text-2xl font-bold text-[#04209d] sm:text-3xl">Log In</h1>
               </div>
 
               <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
