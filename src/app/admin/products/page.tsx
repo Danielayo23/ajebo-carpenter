@@ -2,6 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import AdminShell from "../_components/AdminShell";
 import ProductsRowActions from "./_components/ProductsRowActions";
+import { requireAdmin } from "@/lib/admin-only";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 function formatNgnFromKobo(kobo: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -23,14 +26,23 @@ export default async function ProductsPage() {
 
   const outOfStock = products.filter((p) => p.stock === 0).length;
 
-  async function deleteProduct(formData: FormData) {
+  async function archiveProduct(formData: FormData) {
     "use server";
-    const id = Number(formData.get("id"));
-    if (!id || Number.isNaN(id)) return;
 
-    // If you have FK constraints, deleting order items referencing product may fail.
-    // For now we only delete the product record.
-    await prisma.product.delete({ where: { id } });
+    await requireAdmin();
+
+    const id = Number(formData.get("id"));
+    if (!Number.isFinite(id)) return;
+
+    // ✅ Soft-delete (archive) instead of hard delete
+    await prisma.product.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    // ✅ Refresh list + go back cleanly
+    revalidatePath("/admin/products");
+    redirect("/admin/products");
   }
 
   return (
@@ -108,7 +120,6 @@ export default async function ProductsPage() {
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
                             {product.imageUrl ? (
-                              // next/image is nicer later; keep <img> for now
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
@@ -165,10 +176,7 @@ export default async function ProductsPage() {
 
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end">
-                          <ProductsRowActions
-                            productId={product.id}
-                            onDelete={deleteProduct}
-                          />
+                          <ProductsRowActions productId={product.id} onDelete={archiveProduct} />
                         </div>
                       </td>
                     </tr>
