@@ -8,9 +8,9 @@ export default function Page() {
       <CustomerHeader />
 
       <main className="min-h-[calc(100vh-120px)] bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="py-12 sm:py-16">
-            <div className="mx-auto w-full max-w-[520px]">
+        <div className="px-4 sm:px-6">
+          <div className="py-12 sm:py-16 flex justify-center">
+            <div className="w-full max-w-[520px]">
               <div className="text-center">
                 <h1 className="text-2xl font-bold text-[#04209d] sm:text-3xl">
                   Sign Up
@@ -42,16 +42,14 @@ export default function Page() {
                       dividerLine: "bg-gray-200",
                       dividerText: "text-gray-500 text-xs",
 
-                      formFieldLabel:
-                        "text-xs font-semibold text-gray-700",
+                      formFieldLabel: "text-xs font-semibold text-gray-700",
                       formFieldInput:
                         "h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-[#04209d]/20",
 
                       formButtonPrimary:
                         "mt-2 h-12 w-full rounded-full bg-[#04209d] text-white font-semibold hover:bg-[#03185a]",
 
-                      footerAction:
-                        "text-center text-sm text-gray-600",
+                      footerAction: "text-center text-sm text-gray-600",
                       footerActionLink:
                         "text-[#04209d] font-semibold hover:underline",
                     },
