@@ -1,7 +1,5 @@
-import { SignIn } from "@clerk/nextjs";
-‎import CustomerHeader from "@/components/customer-header";
-‎
-‎import Footer from "@/components/customer-footer";
+import CustomerHeader from "@/components/customer-header";
+import Footer from "@/components/customer-footer";
 ‎
 ‎export default function Page() {
 ‎  return (
