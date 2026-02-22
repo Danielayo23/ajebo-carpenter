@@ -382,7 +382,7 @@ export default async function AdminOrdersPage({
             <section>
               <div className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
   <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-    <table className="w-full min-w-[1100px] table-auto text-sm">
+    <table className="w-full min-w-[800px] table-auto text-sm">
       <thead>
         <tr className="text-left text-xs font-semibold text-gray-600">
           <th className="w-10 py-3 pl-3 pr-3 hidden sm:table-cell">
