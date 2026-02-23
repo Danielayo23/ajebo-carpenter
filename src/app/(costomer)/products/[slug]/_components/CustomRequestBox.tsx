@@ -188,7 +188,7 @@ export default function CustomRequestBox({
             onKeyDown={(e) => {
               if (e.key === "Enter") submit();
             }}
-            placeholder="Leave a note or upload an image"
+            placeholder="Message..."
             disabled={sending}
             className="h-full w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none disabled:cursor-not-allowed"
           />
