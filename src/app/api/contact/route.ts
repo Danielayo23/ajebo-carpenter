@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function json(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, {
@@ -21,54 +22,54 @@ function isEmail(v: string) {
 }
 
 export async function POST(req: Request) {
-  const to = process.env.CONTACT_TO_EMAIL || "info@ajebocarpenter.com";
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  try {
+    const body = (await req.json().catch(() => null)) as Body | null;
 
-  // This "from" MUST be a real mailbox on your domain or your SMTP provider
-  // (don’t use the visitor’s email as the from address — it often gets blocked)
-  const from = process.env.CONTACT_FROM_EMAIL || "no-reply@ajebocarpenter.com";
+    const name = String(body?.name ?? "").trim();
+    const email = String(body?.email ?? "").trim();
+    const message = String(body?.message ?? "").trim();
 
-  if (!host || !user || !pass) {
-    return json(
-      {
-        message:
-          "Email service is not configured. Missing SMTP_HOST / SMTP_USER / SMTP_PASS.",
-      },
-      { status: 500 }
-    );
-  }
+    if (!name || !email || !message) {
+      return json({ message: "Missing name, email, or message." }, { status: 400 });
+    }
 
-  const body = (await req.json().catch(() => null)) as Body | null;
-  const name = String(body?.name ?? "").trim();
-  const email = String(body?.email ?? "").trim();
-  const message = String(body?.message ?? "").trim();
+    if (!isEmail(email)) {
+      return json({ message: "Invalid email address." }, { status: 400 });
+    }
 
-  if (!name || !email || !message) {
-    return json({ message: "Missing name, email, or message." }, { status: 400 });
-  }
+    if (message.length > 5000) {
+      return json({ message: "Message too long." }, { status: 400 });
+    }
 
-  if (!isEmail(email)) {
-    return json({ message: "Invalid email address." }, { status: 400 });
-  }
+    const host = process.env.SMTP_HOST;
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || user;
+    const to = process.env.CONTACT_TO || user;
 
-  // Basic anti-abuse
-  if (message.length > 5000) {
-    return json({ message: "Message too long." }, { status: 400 });
-  }
+    if (!host || !user || !pass || !from) {
+      return json(
+        { message: "Missing SMTP environment variables." },
+        { status: 500 }
+      );
+    }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465, // true for 465, false for 587
-    auth: { user, pass },
-  });
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
 
-  const subject = `New Contact Message — Ajebo Carpenter (${name})`;
+    const subject = `New Contact Message — ${name}`;
 
-  const text = `
+    await transporter.sendMail({
+      from,
+      to,
+      replyTo: email,
+      subject,
+      text: `
 New contact form submission:
 
 Name: ${name}
@@ -76,34 +77,25 @@ Email: ${email}
 
 Message:
 ${message}
-`.trim();
-
-  const html = `
-  <div style="font-family: Arial, sans-serif; line-height:1.5;">
-    <h2>New contact form submission</h2>
-    <p><strong>Name:</strong> ${escapeHtml(name)}</p>
-    <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-    <p><strong>Message:</strong></p>
-    <pre style="white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:8px;">${escapeHtml(
-      message
-    )}</pre>
-  </div>
-  `;
-
-  try {
-    await transporter.sendMail({
-      from,                 // your mailbox (important)
-      to,                   // info@ajebocarpenter.com
-      replyTo: email,       // so you can reply to the customer
-      subject,
-      text,
-      html,
+      `.trim(),
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>New contact form submission</h2>
+          <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+          <p><strong>Message:</strong></p>
+          <pre style="white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:8px;">
+${escapeHtml(message)}
+          </pre>
+        </div>
+      `,
     });
 
     return json({ ok: true });
-  } catch (err) {
+  } catch (err: any) {
+    console.error("CONTACT_EMAIL_ERROR:", err);
     return json(
-      { message: "Failed to send message. Please try again." },
+      { message: "Failed to send message.", error: err?.message },
       { status: 500 }
     );
   }
