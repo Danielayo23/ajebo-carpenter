@@ -29,7 +29,7 @@ export default function CustomerFooter() {
                 </a>
 
                 <a
-                  href="tel:+2348154442381"
+                  href="tel:+2348154642381"
                   className="flex items-center gap-3 text-sm text-white transition-colors hover:text-[#c9d5e9]"
                 >
                   <Phone size={18} className="text-white" />
