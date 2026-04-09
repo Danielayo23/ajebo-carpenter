@@ -33,7 +33,7 @@ export default function CustomerFooter() {
                   className="flex items-center gap-3 text-sm text-white transition-colors hover:text-[#c9d5e9]"
                 >
                   <Phone size={18} className="text-white" />
-                  <span>+234-815-444-2381</span>
+                  <span>+234-815-464-2381</span>
                 </a>
               </div>
             
