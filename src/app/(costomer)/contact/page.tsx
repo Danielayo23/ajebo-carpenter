@@ -111,7 +111,7 @@ export default function ContactPage() {
                 </a>
 
                 <a
-                  href="tel:+2348154442381"
+                  href="tel:+2348154642381"
                   className="flex items-center gap-3 text-sm text-gray-700 transition-colors hover:text-[#04209d]"
                 >
                   <Phone size={18} className="text-[#04209d]" />
