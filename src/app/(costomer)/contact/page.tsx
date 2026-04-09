@@ -98,7 +98,7 @@ export default function ContactPage() {
             <div className="mt-8 space-y-6 rounded-2xl bg-gray-50 p-6">
               <p className="text-sm leading-relaxed text-gray-700">
                 We are excited to meet you, but we are still far to meet you. The team will be happy
-                to listen to your request and offer further assistance.
+                to listen to your request and offer further assistance...
               </p>
 
               <div className="space-y-4">
