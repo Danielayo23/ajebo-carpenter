@@ -18,6 +18,10 @@ export default async function CategoriesPage() {
     },
   });
 
+  if(!categories) {
+    return <p>No categories found</p>
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <section className="bg-gradient-to-b from-blue-50 to-white px-4 py-16 text-center">
