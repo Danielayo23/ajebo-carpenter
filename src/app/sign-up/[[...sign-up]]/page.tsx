@@ -1,4 +1,4 @@
-import { SignUp } from "@clerk/nextjs";
+/*import { SignUp } from "@clerk/nextjs";
 import CustomerHeader from "@/components/customer-header";
 import Footer from "@/components/customer-footer";
 
@@ -16,7 +16,7 @@ export default function Page() {
                   Sign Up
                 </h1>
                 <p className="mt-2 text-sm text-gray-500">
-                  Welcome! Get started in secondsss
+                    Welcome! Get started in seconds
                 </p>
               </div>
 
@@ -69,4 +69,4 @@ export default function Page() {
       <Footer />
     </>
   );
-}
+}*/
