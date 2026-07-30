@@ -1,4 +1,4 @@
-/*import { SignUp } from "@clerk/nextjs";
+import { SignUp } from "@clerk/nextjs";
 import CustomerHeader from "@/components/customer-header";
 import Footer from "@/components/customer-footer";
 
@@ -69,4 +69,4 @@ export default function Page() {
       <Footer />
     </>
   );
-}*/
+}
