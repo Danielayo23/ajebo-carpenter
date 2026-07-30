@@ -16,7 +16,7 @@ export default function Page() {
                   Sign Up
                 </h1>
                 <p className="mt-2 text-sm text-gray-500">
-                  Welcome! Get started in seconds
+                  Welcome! Get started in secondsss
                 </p>
               </div>
 
