@@ -1,4 +1,4 @@
-import { SignUp } from "@clerk/nextjs";
+/*import { SignUp } from "@clerk/nextjs";
 import CustomerHeader from "@/components/customer-header";
 import Footer from "@/components/customer-footer";
 
@@ -68,5 +68,51 @@ export default function Page() {
 
       <Footer />
     </>
+  );
+}*/
+
+
+
+// src/app/sign-up/[[...sign-up]]/page.tsx
+
+"use client";
+
+import { useEffect, useState } from "react";
+
+export default function Page() {
+  const [seconds, setSeconds] = useState(5);
+
+  useEffect(() => {
+    const countdown = setInterval(() => {
+      setSeconds((current) => {
+        if (current <= 1) {
+          clearInterval(countdown);
+          window.location.href = "/";
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdown);
+  }, []);
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#0b0b0f] px-6">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold uppercase tracking-widest text-red-500 sm:text-4xl">
+          Under Maintenance
+        </h1>
+
+        <p className="mt-4 text-sm text-gray-400 sm:text-base">
+          We&apos;ll be back shortly.
+        </p>
+
+        <p className="mt-6 text-sm text-gray-500">
+          Returning to Ajebo Carpenter in {seconds}s...
+        </p>
+      </div>
+    </main>
   );
 }
